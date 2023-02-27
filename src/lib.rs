@@ -7,7 +7,7 @@ pub fn read_pass(){
     
     //change to alternative buffer screen
     execute!(stdout(), EnterAlternateScreen).unwrap();
-    let title:SetTitle<String> = SetTitle(String::from("Hola mundo"));
+    let title:SetTitle<String> = SetTitle(String::from("| LPM | Letder's password manager |"));
     
     execute!(stdout(), title).unwrap();
 
