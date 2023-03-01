@@ -8,7 +8,9 @@ edition = "2021"
 [dependencies]
 aes = "0.8.2"
 crossterm = "0.26.1"
+ctrlc = "3.2.5"
+rpassword = "7.2.0"
 
 [[bin]]
 name = "lpm"
-path = "main.rs"
+path = "src/main.rs"
