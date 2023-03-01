@@ -64,7 +64,7 @@ fn check_config(path:&PathBuf){
         
         let folders= path.iter().collect::< Vec<_> >();
 
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
         let path_tocheck: PathBuf = folders[0..5].iter().collect();
         #[cfg(target_os = "windows")]
         let path_tocheck: PathBuf = folders[0..7].iter().collect();
