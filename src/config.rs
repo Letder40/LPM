@@ -106,7 +106,7 @@ fn recreate_file(config_file:&mut File) {
     config_file.write_all(b"passfile_path: default\nlpm_prompt: default\nlpm_remote_server: default").expect("failed to write in the config file");
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn config_path() -> PathBuf {
     let mut home = std::env::var("HOME").unwrap();
     home.push_str("/.config/lpm/lpm.conf");
