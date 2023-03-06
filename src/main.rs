@@ -8,9 +8,20 @@ use std::path::Path;
 use std::os::unix::fs::PermissionsExt;
 
 fn main(){
-    let path: String = String::from("passfile.lpm");
-    let passfile_path: &Path = Path::new(&path);
-    read_config();
+    ctrlc::set_handler(move || {
+        exit(1);
+    }).expect("Error setting Ctrl-C handler");
+
+    let config = read_config();
+    let mut _path: String = String::new();
+    
+    if config["passfile_path"] == "default" {
+        _path = String::from("passfile.lpm");
+    }else{
+        _path = config["passfile_path"].clone() + "/passfile.lpm";
+    }
+
+    let passfile_path: &Path = Path::new(&_path);
     let mut input = String::new();
     
     if !passfile_path.exists() {
@@ -23,9 +34,11 @@ fn main(){
             input.make_ascii_lowercase(); 
 
             if input.trim() == "y" || input.trim() == "" {
-                let _passfile = File::create(passfile_path).unwrap();
+                let _passfile = File::create(passfile_path).expect("the creation of the file has failed, maybe the path provided is not valid or you have lack of permisions on that directory");
                 #[cfg(any(target_os = "linux", target_os = "macos"))]
                 unix_permisions(&passfile_path, &_passfile);
+                println!("\n [?] Encrypting the file, pls provaid a password for the ecryption and a IV ( Initialization vector ) you must remember both in order to access to the file \n");
+                lpm::home::read_pass();
                 break;
 
             }else if input.trim() == "n" {

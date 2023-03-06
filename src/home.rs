@@ -18,9 +18,14 @@ pub fn home(){
     
 
     read_pass();
+    let config = crate::config::read_config();
 
     loop {
-        print!("LPM > ");
+        if config["lpm_prompt"] == "default" {
+            print!("LPM > ");
+        }else{
+            print!("{} > ", config["lpm_prompt"]);
+        }
         stdout().flush().unwrap();
 
         stdin().read_line(&mut input).unwrap();
@@ -36,7 +41,7 @@ pub fn home(){
 }
 
 //Read password
-fn read_pass() -> [String; 2] {
+pub fn read_pass() -> [String; 2] {
 
     print!("Master key : ");
     stdout().flush().unwrap();
