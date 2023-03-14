@@ -16,7 +16,7 @@ fn main(){
     let mut _path: String = String::new();
     
     if config["passfile_path"] == "default" {
-        _path = String::from("passfile.lpm");
+        _path = lpm_default_path();
     }else{
         _path = config["passfile_path"].clone() + "/passfile.lpm";
     }
@@ -37,8 +37,8 @@ fn main(){
                 let _passfile = File::create(passfile_path).expect("the creation of the file has failed, maybe the path provided is not valid or you have lack of permisions on that directory");
                 #[cfg(any(target_os = "linux", target_os = "macos"))]
                 unix_permisions(&passfile_path, &_passfile);
-                println!("\n [?] Encrypting the file, pls provaid a password for the ecryption and a IV ( Initialization vector ) you must remember both in order to access to the file \n");
-                lpm::home::read_pass();
+                println!("\n[!] provaid a password you must remember it, there is no way of change it or recover it \n");
+                stdout().flush().unwrap();
                 break;
 
             }else if input.trim() == "n" {
@@ -65,3 +65,16 @@ fn unix_permisions(path:&Path, passfile:&File){
     permisions.set_mode(0o600);
     std::fs::set_permissions(path, permisions).unwrap();
 }
+
+fn lpm_default_path() -> String {
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    let mut config_path_str = std::env::var("HOME").unwrap();
+    
+    #[cfg(target_os = "windows")]
+    let mut config_path_str = std::env::var("USERPROFILE").unwrap();
+
+    config_path_str.push_str("/.passfile.lpm");
+    return config_path_str;
+}
+
+

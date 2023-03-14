@@ -1,9 +1,13 @@
 use crossterm::{execute, terminal::{EnterAlternateScreen, SetTitle}};
 use std::io::{stdout, Write, stdin};
+
+use crate::crypto::encrypt;
 //use crate::utils::exit;
 
-
 pub fn home(){
+    
+    let password = read_pass();
+    let key = crate::crypto::get_key(password);
 
     //change to alternative buffer screen
     execute!(stdout(), EnterAlternateScreen).unwrap();
@@ -12,12 +16,10 @@ pub fn home(){
     let title:SetTitle<String> = SetTitle(String::from("| LPM | Letder's password manager |"));
     execute!(stdout(), title).unwrap();
 
-    //let credentials = crate::utils::read_pass();
-    
+    encrypt(String::from("prueba !end"), key);
+   
     let mut input = String::new();
-    
 
-    read_pass();
     let config = crate::config::read_config();
 
     loop {
@@ -41,21 +43,12 @@ pub fn home(){
 }
 
 //Read password
-pub fn read_pass() -> [String; 2] {
+pub fn read_pass() -> String {
 
     print!("Master key : ");
     stdout().flush().unwrap();
 
     let password:String = rpassword::read_password().unwrap();
 
-    print!("IV : ");
-    stdout().flush().unwrap();
-    let iv:String = rpassword::read_password().unwrap();
-
-    let credentials:[String; 2] = [
-        password,
-        iv,
-    ];
-
-    return credentials;
+    return password;
 }
