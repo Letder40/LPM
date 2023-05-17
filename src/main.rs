@@ -37,7 +37,7 @@ fn main(){
                 let _passfile = File::create(passfile_path).expect("the creation of the file has failed, maybe the path provided is not valid or you have lack of permisions on that directory");
                 #[cfg(any(target_os = "linux", target_os = "macos"))]
                 unix_permisions(&passfile_path, &_passfile);
-                println!("\n[!] provaid a password you must remember it, there is no way of change it or recover it \n");
+                println!("\n [!] provaid a password you must remember it, there is no way of change it or recover it \n");
                 stdout().flush().unwrap();
                 break;
 

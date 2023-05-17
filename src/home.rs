@@ -1,3 +1,4 @@
+use aes_gcm::aead::generic_array::GenericArray;
 use crossterm::{execute, terminal::{EnterAlternateScreen, SetTitle}};
 use std::io::{stdout, Write, stdin};
 
@@ -7,7 +8,7 @@ use crate::crypto::encrypt;
 pub fn home(){
     
     let password = read_pass();
-    let key = crate::crypto::get_key(password);
+    let key: GenericArray<u8, _> = crate::crypto::get_key(password);
 
     //change to alternative buffer screen
     execute!(stdout(), EnterAlternateScreen).unwrap();
@@ -16,7 +17,7 @@ pub fn home(){
     let title:SetTitle<String> = SetTitle(String::from("| LPM | Letder's password manager |"));
     execute!(stdout(), title).unwrap();
 
-    encrypt(String::from("prueba !end"), key);
+    encrypt(String::from("prueba !end"), key.to_vec());
    
     let mut input = String::new();
 
@@ -34,6 +35,7 @@ pub fn home(){
 
         let input_splited: Vec<&str> = input.split(" ").collect();
         let input_len: usize = input_splited.len();
+        
         if input_len > 2 {
             println!(" [!] Invalid Command -> [ help ] to list all commands");
             stdout().flush().unwrap();

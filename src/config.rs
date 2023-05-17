@@ -4,10 +4,14 @@ use std::path::{PathBuf};
 use std::fs::{File, create_dir_all};
 use crate::utils::exit;
 
+//Reading the file and transform the content in a legible format
+
+
 pub fn read_config() -> HashMap<String, String> {
-    //Reading the file and transform the content in a legible format
-    let path:PathBuf = config_path();
-    check_config(&path);
+
+    let mut path:PathBuf = config_path(); // Getting path from private function config_path(), it get the config path widnows/linux/macos
+    check_config(&mut path); // Checking if config file exists if not create a new one and all the parents folders
+
     let mut config_file = File::open(&path).unwrap();
     let mut read_buffer:Vec<u8> = vec![];
     config_file.read_to_end(&mut read_buffer).expect(" [!] wasn't been posible to read the file ");
@@ -58,46 +62,36 @@ pub fn read_config() -> HashMap<String, String> {
 }
 
 
-//check if config file exits if not create a new one
-fn check_config(path:&PathBuf){
+//check if config does not exits create a new one and the full path of the config file
+fn check_config(path:&mut PathBuf){
     if !path.exists() {
-        
-        let folders= path.iter().collect::< Vec<_> >();
+        let mut folders = path.clone();
+        folders.pop();
 
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
-        let path_tocheck: PathBuf = folders[0..5].iter().collect();
-        #[cfg(target_os = "windows")]
-        let path_tocheck: PathBuf = folders[0..7].iter().collect();
+        match create_dir_all(folders) {
+            Ok(_) => { 
+                println!(" [?] {} has been created",path.display() );
+            },
+            Err(_) => { 
+                eprintln!(" [!] The config folder doesn't exists and it can't be create in {}, possibely a permision error \n exiting ...",path.display() );
+                exit(1);
+            },
+        }            
         
-        if !path_tocheck.exists() {
-            match create_dir_all(&path_tocheck) {
-                Ok(_) => { 
-                    println!(" [?] {} has been created",path_tocheck.display() );
-                },
-                Err(_) => { 
-                    eprintln!(" [!] The config folder doesn't exists and it can't be create in {}, possibely a permision error \n exiting ...",path_tocheck.display() );
-                    exit(1);
-                },
-            }            
+        match File::create(&path)  {
+            Ok(mut config_file) => { 
+                config_file.write_all(b"passfile_path: default\nlpm_prompt: default\nlpm_remote_server: none").expect("failed to write in the config file");
+                println!(" [?] {} has been created",path.display() );
+            },
+            Err(_) => { 
+                eprintln!(" [!] The config file can't be create in {}, possibely a permision error \n exiting ...",path.display() );
+                exit(1);
+            },
         }
-
-        let path_tocheck: PathBuf = folders[0..].iter().collect();
-
-        if !path_tocheck.exists() {
-            match File::create(&path_tocheck)  {
-                Ok(mut config_file) => { 
-                    config_file.write_all(b"passfile_path: default\nlpm_prompt: default\nlpm_remote_server: none").expect("failed to write in the config file");
-                    println!(" [?] {} has been created",path_tocheck.display() );
-
-                },
-                Err(_) => { 
-                    eprintln!(" [!] The config file can't be create in {}, possibely a permision error \n exiting ...",path_tocheck.display() );
-                    exit(1);
-                },
-            }
-        }   
+      
     }
 }
+
 
 //recreate the file that has been corrupted
 fn recreate_file(config_file:&mut File) {
@@ -105,6 +99,8 @@ fn recreate_file(config_file:&mut File) {
     config_file.set_len(0).expect("failed to clear the content of the file");
     config_file.write_all(b"passfile_path: default\nlpm_prompt: default\nlpm_remote_server: default").expect("failed to write in the config file");
 }
+
+// Configs files from linux|macos and windows determined by compiler
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 fn config_path() -> PathBuf {
