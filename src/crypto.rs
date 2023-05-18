@@ -39,8 +39,8 @@ pub fn encrypt(mut passwd:String)  {
     let nonce = GenericArray::from_slice(nonce_buff.as_slice());
     let mut cipher_data = cipher.encrypt(nonce, data.as_ref()).expect(" [!] The encryption has failed");
     
-    println!("Ciphering...\n{:?} of {} bytes", nonce, nonce.len());   // for testing purposes
-    println!("{:?} of {} bytes\n\n", cipher_data, cipher_data.len());    // for testing purposes
+    //println!("Ciphering...\n{:?} of {} bytes", nonce, nonce.len());   // for testing purposes
+    //println!("{:?} of {} bytes\n\n", cipher_data, cipher_data.len());    // for testing purposes
 
     //Populating passfile.lpm with 12bytes(64bits) of nonce and the cipher data
     let mut passfile = File::create(passfile_path).unwrap();
@@ -70,8 +70,8 @@ pub fn decrypt(mut passwd: String) {
     let text_buf = decipher.decrypt(nonce, cipher_text).unwrap();
     let plain_text = String::from_utf8(text_buf).unwrap();
 
-    println!("Decrypting...\n{:?} of {} bytes", nonce, nonce.len());   // for testing purposes
-    println!("{:?} of {} bytes -> {}",cipher_text, cipher_text.len(), plain_text );    // for testing purposes
+    //println!("Decrypting...\n{:?} of {} bytes", nonce, nonce.len());   // for testing purposes
+    //println!("{:?} of {} bytes -> {}",cipher_text, cipher_text.len(), plain_text );    // for testing purposes
 }
 
 

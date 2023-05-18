@@ -7,6 +7,15 @@ use std::path::Path;
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::os::unix::fs::PermissionsExt;
 
+//     ___       ________  _____ ______      
+//    |\  \     |\   __  \|\   _ \  _   \    
+//    \ \  \    \ \  \|\  \ \  \\\__\ \  \   
+//     \ \  \    \ \   ____\ \  \\|__| \  \  
+//      \ \  \____\ \  \___|\ \  \    \ \  \ 
+//       \ \_______\ \__\    \ \__\    \ \__\
+//        \|_______|\|__|     \|__|     \|__|
+
+
 fn main(){
     // Handler for user keyboard interruptions ctrlc
     ctrlc::set_handler(move || {

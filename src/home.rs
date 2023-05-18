@@ -17,9 +17,13 @@ pub fn home(){
     execute!(stdout(), title).unwrap();
 
     decrypt(password);
-   
+    
     let config = crate::config::read_config();
-
+    
+    let ascii_art = ["", "     ___       ________  _____ ______      ","    |\\  \\     |\\   __  \\|\\   _ \\  _   \\    ", "    \\ \\  \\    \\ \\  \\|\\  \\ \\  \\\\\\__\\ \\  \\   ", "     \\ \\  \\    \\ \\   ____\\ \\  \\\\|__| \\  \\  ", "      \\ \\  \\____\\ \\  \\___|\\ \\  \\    \\ \\  \\ ", "        \\|_______|\\|__|     \\|__|     \\|__|", "", ""];
+    for line in ascii_art.iter() {
+        println!("{}", line)
+    }
     loop {
         
 
@@ -46,7 +50,8 @@ pub fn home(){
             "list passwords"     | "lp"  => { println!("listing passwords") }
             "new password"       | "np"  => { println!("writting password") }
             "get configuration"  | "gc"  => { println!("getting configuration") }
-            "author"             | "lpm" => { println!("https://github.com/Letder40")}
+            "author"             | "lpm" => { println!("\n\t+-------------------------------+\n\t|  https://github.com/Letder40  |\n\t+-------------------------------+\n")}
+            ""                           => {}
             _                            => { println!(" [!] Invalid Command -> [ help ] to list all commands")}
         }
         
@@ -61,4 +66,22 @@ pub fn read_pass() -> String {
     let password:String = rpassword::read_password().unwrap();
 
     return password;
+}
+
+// Home functions
+fn np(){
+    let mut input_buffer = String::new();
+    print!("Password id: ");
+    stdout().flush().unwrap();
+    stdin().read_line(&mut input_buffer).unwrap();
+    let id = input_buffer.trim();
+
+    let mut input_buffer = String::new();
+    print!("Password value: ");
+    stdout().flush().unwrap();
+    stdin().read_line(&mut input_buffer).unwrap();
+    let value = input_buffer.trim();
+}
+fn lp(){
+
 }
