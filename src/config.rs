@@ -4,8 +4,8 @@ use std::path::{PathBuf};
 use std::fs::{File, create_dir_all};
 use crate::utils::exit;
 
-//Reading the file and transform the content in a legible format
 
+//Reading the file and transform the content in a legible format
 
 pub fn read_config() -> HashMap<String, String> {
 
@@ -41,24 +41,24 @@ pub fn read_config() -> HashMap<String, String> {
 
     }
 
-    let mut data_hashmap:HashMap<&str, &str> = HashMap::new();
+    let mut data_hashmap:HashMap<String, String> = HashMap::new();
     
-    //splitting the vector in chunks of size 2 and adding it to the hashmap
+    //splitting the vector in chunks of size 2 and adding it to the hashmap then ...
+    //Getting a hashmap of type String because &str is borrowed
+
     for chunk in data_vec.chunks(2) {
-        let key = chunk[0];
-        let value = chunk[1];
+        let key = chunk[0].to_owned();
+        
+        let value = if key.as_str() == "passfile_path" && chunk[1].trim() == "default" {
+            lpm_default_path()
+        } else {
+            chunk[1].trim().to_owned()
+        };
+        
         data_hashmap.insert(key, value);
     }
 
-    //Getting a hashmap of type String because &str is borrowed
-    let mut conf_hashmap:HashMap<String, String> = HashMap::new();
-    for (key, value) in data_hashmap {
-        let new_key = String::from(key.trim());
-        let new_value = String::from(value.trim());
-        conf_hashmap.insert(new_key, new_value);
-    }
-
-    return conf_hashmap;
+    return data_hashmap;
 }
 
 
@@ -118,3 +118,13 @@ fn config_path() -> PathBuf {
     return config_path;
 }
 
+fn lpm_default_path() -> String {
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    let mut config_path_str = std::env::var("HOME").unwrap();
+    
+    #[cfg(target_os = "windows")]
+    let mut config_path_str = std::env::var("USERPROFILE").unwrap();
+
+    config_path_str.push_str("/.passfile.lpm");
+    return config_path_str;
+}

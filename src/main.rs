@@ -8,24 +8,20 @@ use std::path::Path;
 use std::os::unix::fs::PermissionsExt;
 
 fn main(){
+    // Handler for user keyboard interruptions ctrlc
     ctrlc::set_handler(move || {
         exit(1);
     }).expect("Error setting Ctrl-C handler");
 
     let config = read_config();
-    let mut _path: String = String::new();
-    
-    if config["passfile_path"] == "default" {
-        _path = lpm_default_path();
-    }else{
-        _path = config["passfile_path"].clone() + "/passfile.lpm";
-    }
+    let passfile_path: &Path = Path::new(&config["passfile_path"]);
 
-    let passfile_path: &Path = Path::new(&_path);
+    // Creating String type var to use it later as input buffer
     let mut input = String::new();
     
+
     if !passfile_path.exists() {
-        //code
+        //code rustico.
         loop {
             print!("\npassword file not exists, do you want to create a new one [Y/n] : ");
             stdout().flush().unwrap();
@@ -34,11 +30,21 @@ fn main(){
             input.make_ascii_lowercase(); 
 
             if input.trim() == "y" || input.trim() == "" {
-                let _passfile = File::create(passfile_path).expect("the creation of the file has failed, maybe the path provided is not valid or you have lack of permisions on that directory");
+                // passfile creation
+                let mut _passfile = File::create(passfile_path).expect(" [!] The creation of the file has failed, maybe the path provided is not valid or you have lack of permisions on that directory");
+                // If unix gives secure privileges
                 #[cfg(any(target_os = "linux", target_os = "macos"))]
                 unix_permisions(&passfile_path, &_passfile);
+                // write {CHECK LINE} (This first line will be used to check the validity of the password)
+                _passfile.write_all(String::from("Access!\n").as_bytes()).expect(" [!] Error in the initialization of the passfile");
+                // Getting password
                 println!("\n [!] provaid a password you must remember it, there is no way of change it or recover it \n");
+                let password = lpm::home::read_pass();
+                lpm::crypto::encrypt(password);
+
                 stdout().flush().unwrap();
+                // Encrypting passfile
+
                 break;
 
             }else if input.trim() == "n" {
@@ -54,7 +60,9 @@ fn main(){
         
     }
 
+    // LPM INIT 
     home();
+
 
 }
 
@@ -64,17 +72,6 @@ fn unix_permisions(path:&Path, passfile:&File){
     let mut permisions = metadata.permissions();
     permisions.set_mode(0o600);
     std::fs::set_permissions(path, permisions).unwrap();
-}
-
-fn lpm_default_path() -> String {
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
-    let mut config_path_str = std::env::var("HOME").unwrap();
-    
-    #[cfg(target_os = "windows")]
-    let mut config_path_str = std::env::var("USERPROFILE").unwrap();
-
-    config_path_str.push_str("/.passfile.lpm");
-    return config_path_str;
 }
 
 
