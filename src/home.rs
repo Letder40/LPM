@@ -1,5 +1,5 @@
-use crossterm::{execute, terminal::{EnterAlternateScreen, SetTitle}, style::{SetForegroundColor, Color, ResetColor, Print}};
-use tabled::{builder::{Builder}, settings::{Modify, object::Rows, Alignment, Style}};
+use crossterm::{execute, terminal::{SetTitle}, style::{SetForegroundColor, Color, ResetColor, Print}};
+use tabled::{builder::{Builder}, settings::{Modify, object::Rows, Alignment, Style, Margin, Width}};
 
 use std::{io::{stdout, Write, stdin}};
 
@@ -7,18 +7,19 @@ use aes_gcm::aead::{generic_array::GenericArray};
 use typenum::U32;
 use crate::{crypto::{decrypt, encrypt, get_key}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, utils::exit};
 use zeroize::Zeroize;
-// TODO DATA SERIALIZATION / DESERALIZATION -> ONLY 1 TIME (OPEN/CLOSE FILE) -> KEEP PASSWORDS PROVIDED BY USERS AS Vec<PasswordData>    
 
 pub fn home(){
     let mut password = read_pass();
     stdout().flush().unwrap();
-
-    //change to alternative buffer screen
-    execute!(stdout(), EnterAlternateScreen).unwrap();
     
     //Setting new title
     let title:SetTitle<String> = SetTitle(String::from("| LPM | Letder's password manager |"));
-    execute!(stdout(), title).unwrap();
+    clear();
+    execute!(
+        stdout(), 
+        title,
+    ).unwrap();
+
     
     let config = crate::config::read_config();
     let key = get_key(&password);
@@ -32,9 +33,27 @@ pub fn home(){
         passfile_data = deserialize_passwords(&passfile_data_bytes)
     }
 
-    let ascii_art = ["", "     ___       ________  _____ ______      ","    |\\  \\     |\\   __  \\|\\   _ \\  _   \\    ", "    \\ \\  \\    \\ \\  \\|\\  \\ \\  \\\\\\__\\ \\  \\   ", "     \\ \\  \\    \\ \\   ____\\ \\  \\\\|__| \\  \\  ", "      \\ \\  \\____\\ \\  \\___|\\ \\  \\    \\ \\  \\ ", "        \\|_______|\\|__|     \\|__|     \\|__|", "", ""];
+    let ascii_art = [
+        "     ___       ","________  _____ ______      \n",
+        "    |\\  \\     ","|\\   __  \\|\\   _ \\  _   \\    \n", 
+        "    \\ \\  \\    ","\\ \\  \\|\\  \\ \\  \\\\\\__\\ \\  \\   \n", 
+        "     \\ \\  \\    ","\\ \\   ____\\ \\  \\\\|__| \\  \\  \n", 
+        "      \\ \\  \\____","\\ \\  \\___|\\ \\  \\    \\ \\  \\ \n", 
+        "       \\|_______|","\\|__|     \\|__|     \\|__|\n", 
+        "\n", 
+        "\n"
+    ];
+    
+    println!();
+    let mut index = 0;
     for line in ascii_art.iter() {
-        println!("{}", line)
+        if index % 2 == 0 {
+            print!("{line}");
+            index+=1;
+            continue;
+        }
+        print_in_color(Color::Yellow,line);
+        index+=1
     }
 
     // APP LOOP
@@ -61,15 +80,14 @@ pub fn home(){
 
         match input.as_str().trim() {
             "help" =>  { println!("help") }
-            "list"                            | "lp"  => { lp(&passfile_data) }
-            "new password"                    | "np"  => { np(&mut passfile_data) }
-            "get configuration"               | "gc"  => { println!("getting configuration") }
-            "author"                          | "lpm" => { println!("\n\t+-------------------------------+\n\t|  https://github.com/Letder40  |\n\t+-------------------------------+\n")}
-            "save"       |    "write"         | "w"   => { save(&passfile_data, key) }
-            "save exit"  |    "write exit"    | "wq"  => { save(&passfile_data, key); exit(0, "") } 
-            "exit"       |                      "q"   => { exit(0, "")}  
-            ""                                        => {}
-            _                                         => { println!(" [!] Invalid Command -> [ help ] to list all commands")}
+            "list"               |  "lp"  => { lp(&passfile_data) }
+            "new password"       |  "np"  => { np(&mut passfile_data, key) }
+            "get configuration"  |  "gc"  => { println!("getting configuration") }
+            "author"             |  "lpm" => { author_table() }
+            "exit"               |  "q"   => { exit(0, "")}  
+            "clear"                       => { clear() }
+            ""                            => {}
+            _                             => { println!(" [!] Invalid Command -> [ help ] to list all commands")}
         }
         
         
@@ -86,7 +104,7 @@ pub fn read_pass() -> String {
 }
 
 // Function for new password
-fn np(passfile_data: &mut Vec<PasswordData>){
+fn np(passfile_data: &mut Vec<PasswordData>, key: GenericArray<u8, U32>){
     let mut input_buffer = String::new();
     print!("Password id: ");
     stdout().flush().unwrap();
@@ -122,8 +140,11 @@ fn np(passfile_data: &mut Vec<PasswordData>){
     };
 
     passfile_data.push(new_password);
+    save(passfile_data, key)
 }
-// Function for list passwords
+
+
+// Function for list
 fn lp(passfile_data:&Vec<PasswordData>){
     
     if passfile_data.len() == 0 {
@@ -131,11 +152,11 @@ fn lp(passfile_data:&Vec<PasswordData>){
         return;
     }
 
-    println!("");
     let mut builder = Builder::default();
     let columns = vec!["#".to_owned(), "Id".to_owned(), "Password".to_owned()];
     let mut n = 1;
     builder.set_header(columns);
+    
     for password_data in passfile_data.iter(){
         let row: Vec<String> = vec![n.to_string(), password_data.id.clone(), password_data.value.clone()];
         builder.push_record(row);
@@ -145,11 +166,33 @@ fn lp(passfile_data:&Vec<PasswordData>){
     let table = builder.build()
     .with(Style::rounded())
     .with(Modify::new(Rows::new(1..)).with(Alignment::left()))
+    .with(Margin::new(2, 0, 1, 1))
+    .with(Modify::new(Rows::new(1..)).with(Width::wrap(60).keep_words()))
     .to_string();
 
     println!("{}", table);
-    println!("");
 
+}
+
+fn author_table(){
+    let mut builder = Builder::default();
+    let headers = vec!["Author", "github"];
+    let row = vec!["Letder", "https://github.com/Letder40"];
+    builder.set_header(headers);
+    builder.push_record(row);
+    let table = builder.build()
+    .with(Style::rounded())
+    .with(Modify::new(Rows::new(1..)).with(Alignment::left()))
+    .with(Margin::new(2, 0, 1, 1))
+    .to_string();
+    println!("{}", table);
+}
+
+fn clear(){
+    #[cfg(target_os = "linux")]
+    print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+    #[cfg(target_os = "windows")]
+    print!("{esc}x1b[1;1H{esc}x1b[2J", esc = 27 as char);
 }
 
 pub fn save(passfile_data: &Vec<PasswordData>, key: GenericArray<u8, U32>){
@@ -159,9 +202,10 @@ pub fn save(passfile_data: &Vec<PasswordData>, key: GenericArray<u8, U32>){
 
 fn print_in_color(color: Color,text: &str){
     execute!(
-        stdout(), 
+        stdout(),
         SetForegroundColor(color),
         Print(text),
         ResetColor
     ).unwrap();
+    stdout().flush().unwrap();
 }

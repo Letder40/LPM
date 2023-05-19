@@ -10,7 +10,6 @@ use std::os::unix::fs::PermissionsExt;
 
 //stop the program with a specific error code
 pub fn exit(code :i32, error: &str){
-    crossterm::execute!(stdout(), crossterm::terminal::LeaveAlternateScreen).unwrap();
     eprint!("{}", error);
     std::process::exit(code);
 }
