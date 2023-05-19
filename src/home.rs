@@ -113,7 +113,8 @@ fn help(){
     let allrows = vec![
         vec!["help", "prints this help"],
         vec!["list | lp", "prints all saved passwords"],
-        vec!["new password | np", "save a new password"],
+        vec!["new password | np", "save a new password, type r in the password input to generate a randow password"],
+        vec!["copy | cp", "copy a password to clipboard by [ Password Id ] or [ Numeric Id displayed ] on list or lp"],
         vec!["get configuration | gc", "Prints the path of the config file and its content"],
         vec!["author | lpm", "information about the author of the program also known as me"],
         vec!["clear", "Clear the screen buffer as clear or cls"],
