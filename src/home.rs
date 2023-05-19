@@ -5,7 +5,7 @@ use std::{io::{stdout, Write, stdin}};
 
 use aes_gcm::aead::{generic_array::GenericArray};
 use typenum::U32;
-use crate::{crypto::{decrypt, encrypt, get_key}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, utils::exit};
+use crate::{crypto::{decrypt, encrypt, get_key}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, utils::exit, config::read_config};
 use zeroize::Zeroize;
 
 //TODO IMPROVE THE NPASSWORD USER INPUT; 
@@ -86,7 +86,7 @@ pub fn home(){
             "help" =>                        { help() }
             "list"               |  "lp"  => { lp(&passfile_data) }
             "new password"       |  "np"  => { np(&mut passfile_data, key) }
-            "get configuration"  |  "gc"  => { println!("getting configuration") }
+            "get configuration"  |  "gc"  => { gc() }
             "author"             |  "lpm" => { author_table() }
             "exit"               |  "q"   => { exit(0, "")}  
             "clear"                       => { clear() }
@@ -122,7 +122,7 @@ fn help(){
 
     builder.set_header(headers);
 
-    for arrow in allrows.into_iter() { builder.push_record(arrow); }
+    for row in allrows.into_iter() { builder.push_record(row); }
 
     let table = builder.build()
     .with(Style::rounded())
@@ -201,6 +201,31 @@ fn lp(passfile_data:&Vec<PasswordData>){
     .with(Modify::new(Rows::new(1..)).with(Width::wrap(30).keep_words()))
     .to_string();
 
+    println!("{}", table);
+
+}
+
+// Function for get configuration
+fn gc(){
+    let config_path = crate::config::config_path().as_os_str().to_owned().into_string().unwrap();
+    let configuration = read_config();
+    let mut builder = Builder::default();
+    let headers = vec!["Configuration name", "Value"];
+    builder.set_header(headers);
+    let rows = vec![
+        vec!["LPM config file path", config_path.as_str()],
+        vec!["passfile.lpm path", configuration["passfile_path"].as_str() ],
+        vec!["Prompt", configuration["lpm_prompt"].as_str() ],
+        vec!["Remote Server (not implemented)", configuration["lpm_remote_server"].as_str() ],
+    ];
+    for row in rows.into_iter() { builder.push_record(row); }
+
+    let table = builder.build()
+    .with(Style::rounded())
+    .with(Modify::new(Rows::new(1..)).with(Alignment::left()))
+    .with(Margin::new(2, 0, 1, 1))
+    .with(Modify::new(Rows::new(1..)).with(Width::wrap(40).keep_words()))
+    .to_string();
     println!("{}", table);
 
 }

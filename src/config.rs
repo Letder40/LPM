@@ -102,7 +102,7 @@ fn recreate_file(config_file:&mut File) {
 // Configs files from linux|macos and windows determined by compiler
 
 #[cfg(any(target_os = "linux", target_os = "macos"))]
-fn config_path() -> PathBuf {
+pub fn config_path() -> PathBuf {
     let mut home = std::env::var("HOME").unwrap();
     home.push_str("/.config/lpm/lpm.conf");
     let config_path = PathBuf::from(home);
@@ -110,7 +110,7 @@ fn config_path() -> PathBuf {
 }
 
 #[cfg(target_os = "windows")]
-fn config_path() -> PathBuf {
+pub fn config_path() -> PathBuf {
     let mut home = std::env::var("USERPROFILE").unwrap();
     home.push_str("/AppData/Roaming/lpm/lpm.conf");
     let config_path = PathBuf::from(home);
