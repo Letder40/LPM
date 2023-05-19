@@ -192,7 +192,7 @@ fn clear(){
     #[cfg(target_os = "linux")]
     print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     #[cfg(target_os = "windows")]
-    print!("{esc}x1b[1;1H{esc}x1b[2J", esc = 27 as char);
+    print!("{esc}x1B[2J", esc = 27 as char);
 }
 
 pub fn save(passfile_data: &Vec<PasswordData>, key: GenericArray<u8, U32>){
