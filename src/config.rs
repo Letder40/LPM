@@ -27,8 +27,7 @@ pub fn read_config() -> HashMap<String, String> {
             stdout().flush().unwrap();
             stdin().read_line(&mut input).unwrap();
             if input.trim().to_lowercase() == "" ||  input.trim().to_lowercase() == "n" {
-                eprintln!("Your config file is corrupted try to fix it or create a new one");
-                exit(1);
+                exit(1, "Your config file is corrupted try to fix it or create a new one\n");
                 break;
             }else if input.trim().to_lowercase() == "y" {
                 let mut write_config_file = File::create(&path).unwrap();
@@ -73,8 +72,8 @@ fn check_config(path:&mut PathBuf){
                 println!(" [?] {} has been created",path.display() );
             },
             Err(_) => { 
-                eprintln!(" [!] The config folder doesn't exists and it can't be create in {}, possibely a permision error \n exiting ...",path.display() );
-                exit(1);
+                let error = format!(" [!] The config folder doesn't exists and it can't be create in {}, possibely a permision error \n",path.display() );
+                exit(1, error.as_str());
             },
         }            
         
@@ -84,8 +83,8 @@ fn check_config(path:&mut PathBuf){
                 println!(" [?] {} has been created",path.display() );
             },
             Err(_) => { 
-                eprintln!(" [!] The config file can't be create in {}, possibely a permision error \n exiting ...",path.display() );
-                exit(1);
+                let error = format!(" [!] The config file can't be create in {}, possibely a permision error \n",path.display() );
+                exit(1, error.as_str());
             },
         }
       
