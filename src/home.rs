@@ -110,24 +110,24 @@ pub fn read_pass() -> String {
 fn help(){
     let mut builder = Builder::default();
     let headers = vec!["Command", "functionality"];
-    let row0 = vec!["help", "prints this help"];
-    let row1 = vec!["list | lp", "prints all saved passwords"];
-    let row2 = vec!["new password | np", "save a new password"];
-    let row3 = vec!["get configuration | gc", "Prints the path of the config file and its content"];
-    let row4 = vec!["author | lpm", "information about the author of the program also known as me"];
-    let row5 = vec!["clear", "Clear the screen buffer as clear or cls"];
+    let allrows = vec![
+        vec!["help", "prints this help"],
+        vec!["list | lp", "prints all saved passwords"],
+        vec!["new password | np", "save a new password"],
+        vec!["get configuration | gc", "Prints the path of the config file and its content"],
+        vec!["author | lpm", "information about the author of the program also known as me"],
+        vec!["clear", "Clear the screen buffer as clear or cls"],
+    ];
+
     builder.set_header(headers);
-    builder.push_record(row0);
-    builder.push_record(row1);
-    builder.push_record(row2);
-    builder.push_record(row3);
-    builder.push_record(row4);
-    builder.push_record(row5);
+
+    for arrow in allrows.into_iter() { builder.push_record(arrow); }
 
     let table = builder.build()
     .with(Style::rounded())
     .with(Modify::new(Rows::new(1..)).with(Alignment::left()))
     .with(Margin::new(2, 0, 1, 1))
+    .with(Modify::new(Rows::new(1..)).with(Width::wrap(50).keep_words()))
     .to_string();
     println!("{}", table);
 }
