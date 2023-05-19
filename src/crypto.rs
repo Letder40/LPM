@@ -68,6 +68,7 @@ pub fn decrypt(key: GenericArray<u8, U32>) -> Vec<u8> {
             exit(1, " [!] Access unauthorized. \n")
         },
     };
+    
     //let plain_text = String::from_utf8(textbuf.clone()).unwrap(); // testing purposes
     //println!("Decrypting...\n{:?} of {} bytes", nonce, nonce.len());   // for testing purposes
     //println!("{:?} of {} bytes -> {}",cipher_text, cipher_text.len(), plain_text );    // for testing purposes

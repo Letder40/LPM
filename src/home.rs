@@ -1,8 +1,10 @@
-use crossterm::{execute, terminal::{EnterAlternateScreen, SetTitle}};
+use crossterm::{execute, terminal::{EnterAlternateScreen, SetTitle}, style::{SetForegroundColor, Color, ResetColor, Print}};
+use tabled::{builder::{Builder}, settings::{Modify, object::Rows, Alignment, Style}};
+
 use std::{io::{stdout, Write, stdin}};
+
 use aes_gcm::aead::{generic_array::GenericArray};
 use typenum::U32;
-
 use crate::{crypto::{decrypt, encrypt, get_key}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, utils::exit};
 use zeroize::Zeroize;
 // TODO DATA SERIALIZATION / DESERALIZATION -> ONLY 1 TIME (OPEN/CLOSE FILE) -> KEEP PASSWORDS PROVIDED BY USERS AS Vec<PasswordData>    
@@ -39,9 +41,10 @@ pub fn home(){
     loop {
         
         if config["lpm_prompt"] == "default" {
-            print!("LPM > ");
+            print_in_color(Color::Green, "LPM > ")
         }else{
-            print!("{} > ", config["lpm_prompt"]);
+            let prompt = format!("{} > ", config["lpm_prompt"]);
+            print_in_color(Color::Green, &prompt)
         }
         stdout().flush().unwrap();
 
@@ -90,15 +93,32 @@ fn np(passfile_data: &mut Vec<PasswordData>){
     stdin().read_line(&mut input_buffer).unwrap();
     let id = input_buffer.trim();
 
+    let mut new_password = PasswordData{
+        id: id.to_owned(),
+        value: "".to_owned()
+    };
+
+    //Checking if ID is uniq
+    let mut password_ids: Vec<String> = Vec::<String>::new(); 
+    for password_data in passfile_data.iter() {
+        let id = password_data.id.clone();
+        password_ids.push(id);
+    }
+
+    if password_ids.contains(&new_password.id) {
+        print_in_color(Color::Red, " [!] Password Identifier must be unique\n");
+        return
+    } 
+    
     let mut input_buffer = String::new();
     print!("Password value: ");
     stdout().flush().unwrap();
     stdin().read_line(&mut input_buffer).unwrap();
     let value = input_buffer.trim();
 
-    let new_password = PasswordData{
-        id: id.to_owned(),
-        value: value.to_owned()
+    new_password = PasswordData{
+        id: new_password.id,
+        value: value.to_owned(),
     };
 
     passfile_data.push(new_password);
@@ -110,10 +130,24 @@ fn lp(passfile_data:&Vec<PasswordData>){
         eprintln!(" [?] You don't have any saved password");
         return;
     }
-    println!("\nPassword list: ");
+
+    println!("");
+    let mut builder = Builder::default();
+    let columns = vec!["#".to_owned(), "Id".to_owned(), "Password".to_owned()];
+    let mut n = 1;
+    builder.set_header(columns);
     for password_data in passfile_data.iter(){
-        println!("[ {} ] => [ {} ]", password_data.id, password_data.value)
+        let row: Vec<String> = vec![n.to_string(), password_data.id.clone(), password_data.value.clone()];
+        builder.push_record(row);
+        n += 1
     }
+
+    let table = builder.build()
+    .with(Style::rounded())
+    .with(Modify::new(Rows::new(1..)).with(Alignment::left()))
+    .to_string();
+
+    println!("{}", table);
     println!("");
 
 }
@@ -121,4 +155,13 @@ fn lp(passfile_data:&Vec<PasswordData>){
 pub fn save(passfile_data: &Vec<PasswordData>, key: GenericArray<u8, U32>){
     let passfile_data_bytes = serialize_passwords(passfile_data);
     encrypt(key, passfile_data_bytes)
+}
+
+fn print_in_color(color: Color,text: &str){
+    execute!(
+        stdout(), 
+        SetForegroundColor(color),
+        Print(text),
+        ResetColor
+    ).unwrap();
 }
