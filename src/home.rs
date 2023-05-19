@@ -8,6 +8,10 @@ use typenum::U32;
 use crate::{crypto::{decrypt, encrypt, get_key}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, utils::exit};
 use zeroize::Zeroize;
 
+//TODO IMPROVE THE NPASSWORD USER INPUT; 
+//CAPABILITY OF RANDOMS PASSWORDS IN USER INPUT; 
+//copy|cp function to copy a password to clipboard by PasswordId or NumericId    
+
 pub fn home(){
     let mut password = read_pass();
     stdout().flush().unwrap();
@@ -79,7 +83,7 @@ pub fn home(){
         }
 
         match input.as_str().trim() {
-            "help" =>  { println!("help") }
+            "help" =>                        { help() }
             "list"               |  "lp"  => { lp(&passfile_data) }
             "new password"       |  "np"  => { np(&mut passfile_data, key) }
             "get configuration"  |  "gc"  => { println!("getting configuration") }
@@ -101,6 +105,31 @@ pub fn read_pass() -> String {
     let password:String = rpassword::read_password().unwrap();
 
     return password;
+}
+
+fn help(){
+    let mut builder = Builder::default();
+    let headers = vec!["Command", "functionality"];
+    let row0 = vec!["help", "prints this help"];
+    let row1 = vec!["list | lp", "prints all saved passwords"];
+    let row2 = vec!["new password | np", "save a new password"];
+    let row3 = vec!["get configuration | gc", "Prints the path of the config file and its content"];
+    let row4 = vec!["author | lpm", "information about the author of the program also known as me"];
+    let row5 = vec!["clear", "Clear the screen buffer as clear or cls"];
+    builder.set_header(headers);
+    builder.push_record(row0);
+    builder.push_record(row1);
+    builder.push_record(row2);
+    builder.push_record(row3);
+    builder.push_record(row4);
+    builder.push_record(row5);
+
+    let table = builder.build()
+    .with(Style::rounded())
+    .with(Modify::new(Rows::new(1..)).with(Alignment::left()))
+    .with(Margin::new(2, 0, 1, 1))
+    .to_string();
+    println!("{}", table);
 }
 
 // Function for new password
@@ -167,7 +196,7 @@ fn lp(passfile_data:&Vec<PasswordData>){
     .with(Style::rounded())
     .with(Modify::new(Rows::new(1..)).with(Alignment::left()))
     .with(Margin::new(2, 0, 1, 1))
-    .with(Modify::new(Rows::new(1..)).with(Width::wrap(60).keep_words()))
+    .with(Modify::new(Rows::new(1..)).with(Width::wrap(30).keep_words()))
     .to_string();
 
     println!("{}", table);
@@ -192,7 +221,10 @@ fn clear(){
     #[cfg(target_os = "linux")]
     print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     #[cfg(target_os = "windows")]
-    print!("{esc}x1B[2J", esc = 27 as char);
+    {
+    print!("{esc}[2H", esc = 27 as char);
+    print!("{esc}[2J", esc = 27 as char);
+    }
 }
 
 pub fn save(passfile_data: &Vec<PasswordData>, key: GenericArray<u8, U32>){
