@@ -1,5 +1,5 @@
 use crossterm::{execute, terminal::{SetTitle}, style::{SetForegroundColor, Color, ResetColor, Print}};
-use tabled::{builder::{Builder}, settings::{Modify, object::Rows, Alignment, Style, Margin, Width}};
+use tabled::{builder::{Builder}, settings::{Modify, object::Rows, Alignment, Style, Margin, Width, Padding}};
 
 use std::{io::{stdout, Write, stdin}};
 
@@ -115,7 +115,7 @@ fn help(){
         vec!["list | lp", "prints all saved passwords"],
         vec!["new password | np", "save a new password, type r in the password input to generate a randow password"],
         vec!["copy | cp", "copy a password to clipboard by [ Password Id ] or [ Numeric Id displayed ] on list or lp"],
-        vec!["get configuration | gc", "Prints the path of the config file and its content"],
+        vec!["get configuration | gc   ", "Prints the path of the config file and its content"],
         vec!["author | lpm", "information about the author of the program also known as me"],
         vec!["clear", "Clear the screen buffer as clear or cls"],
     ];
@@ -129,6 +129,7 @@ fn help(){
     .with(Modify::new(Rows::new(1..)).with(Alignment::left()))
     .with(Margin::new(2, 0, 1, 1))
     .with(Modify::new(Rows::new(1..)).with(Width::wrap(50).keep_words()))
+    .with(Modify::new(Rows::new(1..)).with(Padding::new(0, 0, 1, 0)))
     .to_string();
     println!("{}", table);
 }
