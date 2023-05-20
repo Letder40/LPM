@@ -3,7 +3,7 @@ use tabled::{builder::{Builder}, settings::{Modify, object::Rows, Alignment, Sty
 
 #[cfg(target_os = "linux") ]
 use copypasta_ext::{prelude::*, x11_fork::ClipboardContext};
-#[cfg(any(target_os = "windows", target_os = "darwin"))]
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 use cli_clipboard::{ClipboardContext, ClipboardProvider};
 
 use std::{io::{stdout, Write, stdin}};
@@ -239,7 +239,7 @@ fn copy(passfile_data: &Vec<PasswordData>, input: String){
             let mut clipboard = ClipboardContext::new().unwrap();
             clipboard.set_contents(password_struct.value.clone()).unwrap();
             }
-            #[cfg(any(target_os = "darwin", target_os = "windows"))]
+            #[cfg(any(target_os = "macos", target_os = "windows"))]
             {
             let mut clipboard = ClipboardContext::new().unwrap();
             clipboard.set_contents(password_struct.value.clone()).unwrap();
@@ -292,7 +292,7 @@ fn author_table(){
 }
 
 fn clear(){
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
     print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
     #[cfg(target_os = "windows")]
     {
