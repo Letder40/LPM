@@ -8,9 +8,9 @@ use cli_clipboard::{ClipboardContext, ClipboardProvider};
 
 use std::{io::{stdout, Write, stdin}};
 
+use crate::{crypto::{decrypt, encrypt, get_key}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, utils::{exit,print_err, print_input}, config::read_config};
 use aes_gcm::aead::{generic_array::GenericArray};
 use typenum::U32;
-use crate::{crypto::{decrypt, encrypt, get_key}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, utils::{exit,print_err, print_input}, config::read_config};
 use zeroize::Zeroize;
 
 //TODO IMPROVE THE NPASSWORD USER INPUT; 
@@ -78,24 +78,23 @@ pub fn home(){
 
         let mut input = String::new();
         stdin().read_line(&mut input).unwrap();
-
-        let input_splited: Vec<&str> = input.split(" ").collect();
-        let input_len: usize = input_splited.len();
-        
-        if input_len > 2 {
-            print_err("Invalid Command, you can use help to list all commands");
-            stdout().flush().unwrap();
-        }
-
-        if input.starts_with("cp") || input.starts_with("copy") {
+                
+        if input.trim().starts_with("cp") || input.trim().starts_with("copy") {
             copy(&passfile_data, input.clone());
             continue
         }
 
+       if input.trim().starts_with("np") || input.trim().starts_with("new password")  {
+            
+            np(&mut passfile_data, key, input.trim().to_owned());
+            continue
+       }
+
+
         match input.as_str().trim() {
-            "help" =>                        { help() }
+            "help"                        => { help() }
             "list"               |  "lp"  => { lp(&passfile_data) }
-            "new password"       |  "np"  => { np(&mut passfile_data, key) }
+            "new password"       |  "np"  => { np(&mut passfile_data, key, input.trim().to_owned()) }
             "get configuration"  |  "gc"  => { gc() }
             "author"             |  "lpm" => { author_table() }
             "exit"         | "w" |  "wq"  => { exit(0, "")}  
@@ -150,44 +149,82 @@ fn help(){
 }
 
 // Function for new password
-fn np(passfile_data: &mut Vec<PasswordData>, key: GenericArray<u8, U32>){
-    let mut input_buffer = String::new();
-    print_input("Password id: ");
-    stdout().flush().unwrap();
-    stdin().read_line(&mut input_buffer).unwrap();
-    let id = input_buffer.trim();
+fn np(passfile_data: &mut Vec<PasswordData>, key: GenericArray<u8, U32>, input: String){
+    let mut _new_password:PasswordData = PasswordData { id: "".to_string(), value: "".to_string() };
 
-    let mut new_password = PasswordData{
-        id: id.to_owned(),
-        value: "".to_owned()
-    };
+    if input == "np" || input == "new password" {
+        let mut input_buffer = String::new();
+        print_input("Password id: ");
+        stdout().flush().unwrap();
+        stdin().read_line(&mut input_buffer).unwrap();
+        let id = input_buffer.trim();
 
-    //Checking if ID is unique
-    let mut password_ids: Vec<String> = Vec::<String>::new(); 
-    for password_data in passfile_data.iter() {
-        let id = password_data.id.clone();
-        password_ids.push(id);
+        _new_password = PasswordData{
+            id: id.to_owned(),
+            value: "".to_owned()
+        };
+
+        //Checking if ID is unique
+        let mut password_ids: Vec<String> = Vec::<String>::new(); 
+        for password_data in passfile_data.iter() {
+            let id = password_data.id.clone();
+            password_ids.push(id);
+        }
+
+        if password_ids.contains(&_new_password.id) {
+            print_err("Password Identifier must be unique\n");
+            return
+        } 
+
+        let mut input_buffer = String::new();
+        print_input("Password value: ");
+        stdout().flush().unwrap();
+        stdin().read_line(&mut input_buffer).unwrap();
+        let value = input_buffer.trim();
+
+        _new_password = PasswordData{
+            id: _new_password.id,
+            value: value.to_owned(),
+        };
+        
+        println!()
+    
+    }else{
+        let command:String = if input.starts_with("np"){ "np".to_string() }else{ "new password".to_string() } ;
+
+        if input.trim().split(" ").count() != 3 && input.trim().starts_with("np") || input.trim().split(" ").count() != 4 &&  input.trim().starts_with("new password") {
+            print_err(format!("usage: {command} [password ID] [password value or random | r], if no arguments both are requested in user inputs").as_str());
+            return
+        }
+
+        if command == "np" {
+            _new_password = PasswordData{
+                id: input.split(" ").collect::<Vec<&str>>()[1].to_string(),
+                value: input.split(" ").collect::<Vec<&str>>()[2].to_string(),
+            };
+        }else {
+            _new_password = PasswordData{
+                id: input.split(" ").collect::<Vec<&str>>()[2].to_string(),
+                value: input.split(" ").collect::<Vec<&str>>()[3].to_string(),
+            };
+        }
+
+         //Checking if ID is unique
+         let mut password_ids: Vec<String> = Vec::<String>::new(); 
+         for password_data in passfile_data.iter() {
+             let id = password_data.id.clone();
+             password_ids.push(id);
+         }
+ 
+         if password_ids.contains(&_new_password.id) {
+             print_err("Password Identifier must be unique\n");
+             return
+         } 
+
     }
 
-    if password_ids.contains(&new_password.id) {
-        print_err("Password Identifier must be unique\n");
-        return
-    } 
-    
-    let mut input_buffer = String::new();
-    print_input("Password value: ");
-    stdout().flush().unwrap();
-    stdin().read_line(&mut input_buffer).unwrap();
-    let value = input_buffer.trim();
-
-    new_password = PasswordData{
-        id: new_password.id,
-        value: value.to_owned(),
-    };
-
-    passfile_data.push(new_password);
+    passfile_data.push(_new_password);
     save(passfile_data, key);
-    println!()
 }
 
 // Function for list
@@ -315,3 +352,4 @@ pub fn print_in_color(color: Color,text: &str){
     ).unwrap();
     stdout().flush().unwrap();
 }
+
