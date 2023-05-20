@@ -1,17 +1,43 @@
-use std::io::stdout;
-use std::io::{stdin, Write};
-use std::fs::File;
-use std::path::Path;
+use std::{io::{stdout, stderr, stdin, Write}, fs::File, path::Path};
+
 use crate::{config::read_config, crypto::{encrypt, get_key}};
+
+use crossterm::{style::{SetForegroundColor, Color, ResetColor, Print}, execute};
 use zeroize::Zeroize;
+
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::os::unix::fs::PermissionsExt;
 
 
 //stop the program with a specific error code
 pub fn exit(code :i32, error: &str){
-    eprint!("{}", error);
+    print_err(error);
     std::process::exit(code);
+}
+
+pub fn print_err(text: &str){
+    eprint_in_color(Color::Red," [!] ");
+    print!("{text}\n");
+}
+
+pub fn print_input(text: &str){
+    eprint_in_color(Color::Blue," [?] ");
+    print!("{text}");
+}
+
+pub fn print_info(text: &str){
+    eprint_in_color(Color::Yellow," [#] ");
+    print!("{text}\n");
+}
+
+fn eprint_in_color(color: Color,text: &str){
+    execute!(
+        stderr(),
+        SetForegroundColor(color),
+        Print(text),
+        ResetColor
+    ).unwrap();
+    stdout().flush().unwrap();
 }
 
 pub fn check_filepass(){
@@ -25,20 +51,22 @@ pub fn check_filepass(){
     
     if !passfile_path.exists() {
         loop {
-            print!("\npassword file not exists, do you want to create a new one [Y/n] : ");
+            print_input("password file not exists, do you want to create a new one [Y/n] : ");
             stdout().flush().unwrap();
 
             stdin().read_line(&mut input).unwrap();
             input.make_ascii_lowercase(); 
 
+
             if input.trim() == "y" || input.trim() == "" {
                 
                 let mut _passfile = File::create(passfile_path).expect(" [!] The creation of the file has failed, maybe the path provided is not valid or you have lack of permisions on that directory");
+                print_info(format!("password file created in {:?}", passfile_path).as_str());
 
                 #[cfg(any(target_os = "linux", target_os = "macos"))]
                 unix_permisions(&passfile_path, &_passfile);
                 
-                println!("\n [!] provaid a password you must remember it, there is no way of change it or recover it \n");
+                print_info("provides a password you must remember it, there is no way of change it or recover it");
                 
                 let mut password = crate::home::read_pass();
                 let key = get_key(&password);
@@ -50,12 +78,11 @@ pub fn check_filepass(){
                 break;
 
             }else if input.trim() == "n" {
-                eprintln!("password file hasn't been created");
-                exit(1, "");
+                exit(1, "password file hasn't been created");
                 break;
 
             }else{
-                println!("invalid input -> it must be [ y ] or [ n ]");
+                print_err("invalid input, it must be [ y ] or [ n ]");
             }
 
         }

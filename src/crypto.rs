@@ -65,7 +65,7 @@ pub fn decrypt(key: GenericArray<u8, U32>) -> Vec<u8> {
             textbuf = returned_buf;
         },
         Err(_) => {
-            exit(1, " [!] Access unauthorized. \n")
+            exit(1, "Access unauthorized. \n")
         },
     };
     

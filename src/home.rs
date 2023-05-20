@@ -1,11 +1,16 @@
 use crossterm::{execute, terminal::{SetTitle}, style::{SetForegroundColor, Color, ResetColor, Print}};
-use tabled::{builder::{Builder}, settings::{Modify, object::Rows, Alignment, Style, Margin, Width, Padding}};
+use tabled::{builder::{Builder}, settings::{Modify, object::Rows, Alignment, Style, Margin, Width, Padding}}; 
+
+#[cfg(target_os = "linux") ]
+use copypasta_ext::{prelude::*, x11_fork::ClipboardContext};
+#[cfg(any(target_os = "windows", target_os = "darwin"))]
+use cli_clipboard::{ClipboardContext, ClipboardProvider};
 
 use std::{io::{stdout, Write, stdin}};
 
 use aes_gcm::aead::{generic_array::GenericArray};
 use typenum::U32;
-use crate::{crypto::{decrypt, encrypt, get_key}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, utils::exit, config::read_config};
+use crate::{crypto::{decrypt, encrypt, get_key}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, utils::{exit,print_err, print_input}, config::read_config};
 use zeroize::Zeroize;
 
 //TODO IMPROVE THE NPASSWORD USER INPUT; 
@@ -18,12 +23,10 @@ pub fn home(){
     
     //Setting new title
     let title:SetTitle<String> = SetTitle(String::from("| LPM | Letder's password manager |"));
-    clear();
     execute!(
         stdout(), 
         title,
     ).unwrap();
-
     
     let config = crate::config::read_config();
     let key = get_key(&password);
@@ -36,6 +39,8 @@ pub fn home(){
     if passfile_data_bytes.len() != 0 {
         passfile_data = deserialize_passwords(&passfile_data_bytes)
     }
+
+    clear();
 
     let ascii_art = [
         "     ___       ","________  _____ ______      \n",
@@ -78,8 +83,13 @@ pub fn home(){
         let input_len: usize = input_splited.len();
         
         if input_len > 2 {
-            println!(" [!] Invalid Command -> [ help ] to list all commands");
+            print_err("Invalid Command, you can use help to list all commands");
             stdout().flush().unwrap();
+        }
+
+        if input.starts_with("cp") || input.starts_with("copy") {
+            copy(&passfile_data, input.clone());
+            continue
         }
 
         match input.as_str().trim() {
@@ -88,24 +98,29 @@ pub fn home(){
             "new password"       |  "np"  => { np(&mut passfile_data, key) }
             "get configuration"  |  "gc"  => { gc() }
             "author"             |  "lpm" => { author_table() }
-            "exit"               |  "q"   => { exit(0, "")}  
+            "exit"         | "w" |  "wq"  => { exit(0, "")}  
             "clear"                       => { clear() }
             ""                            => {}
-            _                             => { println!(" [!] Invalid Command -> [ help ] to list all commands")}
+            _                             => { print_err("Invalid Command, you can use help to list all commands");}
         }
-        
         
     }
 }
 
 //Read password
 pub fn read_pass() -> String {
-    print!("Master key : ");
+    print_input("Master key : ");
     stdout().flush().unwrap();
     let password:String = rpassword::read_password().unwrap();
 
     return password;
 }
+
+
+// ------------- 
+// CLI FUNCTIONS
+// -------------
+
 
 fn help(){
     let mut builder = Builder::default();
@@ -137,7 +152,7 @@ fn help(){
 // Function for new password
 fn np(passfile_data: &mut Vec<PasswordData>, key: GenericArray<u8, U32>){
     let mut input_buffer = String::new();
-    print!("Password id: ");
+    print_input("Password id: ");
     stdout().flush().unwrap();
     stdin().read_line(&mut input_buffer).unwrap();
     let id = input_buffer.trim();
@@ -147,7 +162,7 @@ fn np(passfile_data: &mut Vec<PasswordData>, key: GenericArray<u8, U32>){
         value: "".to_owned()
     };
 
-    //Checking if ID is uniq
+    //Checking if ID is unique
     let mut password_ids: Vec<String> = Vec::<String>::new(); 
     for password_data in passfile_data.iter() {
         let id = password_data.id.clone();
@@ -155,12 +170,12 @@ fn np(passfile_data: &mut Vec<PasswordData>, key: GenericArray<u8, U32>){
     }
 
     if password_ids.contains(&new_password.id) {
-        print_in_color(Color::Red, " [!] Password Identifier must be unique\n");
+        print_err("Password Identifier must be unique\n");
         return
     } 
     
     let mut input_buffer = String::new();
-    print!("Password value: ");
+    print_input("Password value: ");
     stdout().flush().unwrap();
     stdin().read_line(&mut input_buffer).unwrap();
     let value = input_buffer.trim();
@@ -171,15 +186,15 @@ fn np(passfile_data: &mut Vec<PasswordData>, key: GenericArray<u8, U32>){
     };
 
     passfile_data.push(new_password);
-    save(passfile_data, key)
+    save(passfile_data, key);
+    println!()
 }
-
 
 // Function for list
 fn lp(passfile_data:&Vec<PasswordData>){
     
     if passfile_data.len() == 0 {
-        eprintln!(" [?] You don't have any saved password");
+        print_err("You don't have any saved password");
         return;
     }
 
@@ -205,6 +220,38 @@ fn lp(passfile_data:&Vec<PasswordData>){
 
 }
 
+// Ccopy functionaity
+fn copy(passfile_data: &Vec<PasswordData>, input: String){
+    let input_splitted:Vec<&str> = input.split(" ").collect();
+    
+    if input_splitted.len() != 2 {
+        print_err("You have to provide a valid identifier");
+        return;
+    }
+    
+    let identifier = input_splitted[1].trim();
+    let mut copied = false; 
+
+    for password_struct in passfile_data.iter() {
+        if identifier == password_struct.id {   
+            #[cfg(target_os = "linux")]
+            {
+            let mut clipboard = ClipboardContext::new().unwrap();
+            clipboard.set_contents(password_struct.value.clone()).unwrap();
+            }
+            #[cfg(any(target_os = "darwin", target_os = "windows"))]
+            {
+            let mut clipboard = ClipboardContext::new().unwrap();
+            clipboard.set_contents(password_struct.value.clone()).unwrap();
+            }
+            copied = true
+        }
+    }
+
+    if copied != true {
+        print_err("There is not such identifier")
+    }
+}
 // Function for get configuration
 fn gc(){
     let config_path = crate::config::config_path().as_os_str().to_owned().into_string().unwrap();
@@ -259,7 +306,7 @@ pub fn save(passfile_data: &Vec<PasswordData>, key: GenericArray<u8, U32>){
     encrypt(key, passfile_data_bytes)
 }
 
-fn print_in_color(color: Color,text: &str){
+pub fn print_in_color(color: Color,text: &str){
     execute!(
         stdout(),
         SetForegroundColor(color),

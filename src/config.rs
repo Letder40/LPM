@@ -1,8 +1,6 @@
-use std::collections::{HashMap};
-use std::io::{Write, Read, stdin, stdout};
-use std::path::{PathBuf};
-use std::fs::{File, create_dir_all};
-use crate::utils::exit;
+use std::{collections::{HashMap}, io::{Write, Read, stdin, stdout},path::PathBuf, fs::{File, create_dir_all}};
+
+use crate::utils::{exit, print_info};
 
 
 //Reading the file and transform the content in a legible format
@@ -14,7 +12,13 @@ pub fn read_config() -> HashMap<String, String> {
 
     let mut config_file = File::open(&path).unwrap();
     let mut read_buffer:Vec<u8> = vec![];
-    config_file.read_to_end(&mut read_buffer).expect(" [!] wasn't been posible to read the file ");
+    match config_file.read_to_end(&mut read_buffer) {
+        Ok(_) => {},
+        Err(_) => {
+            eprint!(" [!] wasn't been posible to read the file ")
+        },
+    }
+
     let data = String::from_utf8(read_buffer).unwrap();
     let mut data_vec:Vec<&str> = data.trim().split(['\n', ':']).collect();
 
@@ -69,10 +73,10 @@ fn check_config(path:&mut PathBuf){
 
         match create_dir_all(folders) {
             Ok(_) => { 
-                println!(" [?] {} has been created",path.display() );
+                print_info(format!("{} has been created",path.display()).as_str());
             },
             Err(_) => { 
-                let error = format!(" [!] The config folder doesn't exists and it can't be create in {}, possibely a permision error \n",path.display() );
+                let error = format!("The config folder doesn't exists and it can't be create in {}, possibly a permision error \n",path.display() );
                 exit(1, error.as_str());
             },
         }            
@@ -80,10 +84,9 @@ fn check_config(path:&mut PathBuf){
         match File::create(&path)  {
             Ok(mut config_file) => { 
                 config_file.write_all(b"passfile_path: default\nlpm_prompt: default\nlpm_remote_server: none").expect("failed to write in the config file");
-                println!(" [?] {} has been created",path.display() );
             },
             Err(_) => { 
-                let error = format!(" [!] The config file can't be create in {}, possibely a permision error \n",path.display() );
+                let error = format!("The config file can't be create in {}, possibely a permision error \n",path.display() );
                 exit(1, error.as_str());
             },
         }
@@ -94,7 +97,7 @@ fn check_config(path:&mut PathBuf){
 
 //recreate the file that has been corrupted
 fn recreate_file(config_file:&mut File) {
-    eprintln!("corrupted conf file restoring...");
+    print_info("corrupted conf file restoring...");
     config_file.set_len(0).expect("failed to clear the content of the file");
     config_file.write_all(b"passfile_path: default\nlpm_prompt: default\nlpm_remote_server: default").expect("failed to write in the config file");
 }

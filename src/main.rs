@@ -11,6 +11,7 @@ use lpm::{utils::{exit, check_filepass}, home::home} ;
 fn main(){
     // Handler to handle user keyboard interruptions {ctrlc}
     ctrlc::set_handler(move || {
+        println!("\n");
         exit(1, "Exited by user...\n");
     }).expect("Error setting Ctrl-C handler");
     check_filepass();
