@@ -105,7 +105,7 @@ pub fn home(){
             "new password"       |  "np"  => { np(&mut passfile_data, key, input.trim().to_owned()) }
             "get configuration"  |  "gc"  => { gc() }
             "author"             |  "lpm" => { author_table() }
-            "exit"         | "w" |  "wq"  => { exit(0, "")}  
+            "exit"         | "w" |  "q"  => { exit(0, "")}  
             "clear"                       => { clear() }
             ""                            => {}
             _                             => { print_err("Invalid Command, you can use help to list all commands");}
@@ -136,9 +136,11 @@ fn help(){
         vec!["help", "prints this help"],
         vec!["list | lp", "prints all saved passwords"],
         vec!["new password | np", "save a new password, type r in the password input to generate a randow password"],
+        vec!["rm | del | rem", "remove a password by the password id as argument"],
         vec!["copy | cp", "copy a password to clipboard by [ Password Id ] or [ Numeric Id displayed ] on list or lp"],
         vec!["get configuration | gc   ", "Prints the path of the config file and its content"],
         vec!["author | lpm", "information about the author of the program also known as me"],
+        vec!["exit | wq | q", "closes lpm"],
         vec!["clear", "Clear the screen buffer as clear or cls"],
     ];
 
@@ -151,7 +153,7 @@ fn help(){
     .with(Modify::new(Rows::new(1..)).with(Alignment::left()))
     .with(Margin::new(2, 0, 1, 1))
     .with(Modify::new(Rows::new(1..)).with(Width::wrap(50).keep_words()))
-    .with(Modify::new(Rows::new(1..)).with(Padding::new(0, 0, 1, 0)))
+    .with(Modify::new(Rows::new(1..)).with(Padding::new(0, 0, 0, 0)))
     .to_string();
     println!("{}", table);
 }
