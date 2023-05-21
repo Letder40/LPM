@@ -1,4 +1,6 @@
-use crossterm::{execute, terminal::{SetTitle}, style::{SetForegroundColor, Color, ResetColor, Print}};
+use crate::{crypto::{decrypt, encrypt, get_key}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, utils::{print_err, print_input, print_in_color}, config::read_config};
+use crossterm::{execute, terminal::{SetTitle}, style::Color};
+use rand::Rng;
 use tabled::{builder::{Builder}, settings::{Modify, object::Rows, Alignment, Style, Margin, Width, Padding}}; 
 
 #[cfg(target_os = "linux") ]
@@ -8,12 +10,10 @@ use cli_clipboard::{ClipboardContext, ClipboardProvider};
 
 use std::{io::{stdout, Write, stdin}};
 
-use crate::{crypto::{decrypt, encrypt, get_key}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, utils::{exit,print_err, print_input}, config::read_config};
 use aes_gcm::aead::{generic_array::GenericArray};
 use typenum::U32;
 use zeroize::Zeroize;
 
-//TODO IMPROVE THE NPASSWORD USER INPUT; 
 //CAPABILITY OF RANDOMS PASSWORDS IN USER INPUT; 
 //copy|cp function to copy a password to clipboard by PasswordId or NumericId    
 
@@ -105,7 +105,7 @@ pub fn home(){
             "new password"       |  "np"  => { np(&mut passfile_data, key, input.trim().to_owned()) }
             "get configuration"  |  "gc"  => { gc() }
             "author"             |  "lpm" => { author_table() }
-            "exit"         | "w" |  "q"  => { exit(0, "")}  
+            "exit"         | "w" |  "q"   => { std::process::exit(0); }  
             "clear"                       => { clear() }
             ""                            => {}
             _                             => { print_err("Invalid Command, you can use help to list all commands");}
@@ -190,11 +190,11 @@ fn np(passfile_data: &mut Vec<PasswordData>, key: GenericArray<u8, U32>, input: 
         print_input("Password value: ");
         stdout().flush().unwrap();
         stdin().read_line(&mut input_buffer).unwrap();
-        let value = input_buffer.trim();
+        let value:String = if input_buffer.trim() == "r" || input_buffer.trim() == "random" { random_password() }else{ input_buffer.trim().to_string() };
 
         _new_password = PasswordData{
             id: _new_password.id,
-            value: value.to_owned(),
+            value: value,
         };
         
         println!()
@@ -217,6 +217,10 @@ fn np(passfile_data: &mut Vec<PasswordData>, key: GenericArray<u8, U32>, input: 
                 id: input.split(" ").collect::<Vec<&str>>()[2].to_string(),
                 value: input.split(" ").collect::<Vec<&str>>()[3].to_string(),
             };
+        }
+
+        if _new_password.value == "r" || _new_password.value == "random" {
+            _new_password.value = random_password();
         }
 
          //Checking if ID is unique
@@ -375,13 +379,15 @@ pub fn save(passfile_data: &Vec<PasswordData>, key: GenericArray<u8, U32>){
     encrypt(key, passfile_data_bytes)
 }
 
-pub fn print_in_color(color: Color,text: &str){
-    execute!(
-        stdout(),
-        SetForegroundColor(color),
-        Print(text),
-        ResetColor
-    ).unwrap();
-    stdout().flush().unwrap();
-}
+fn random_password() -> String {
+    let char_candidates = vec!['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','0','1','2','3','4','5','6','7','8','9','!','@','#','$','%','^','&','*','(',')','-','_','+','=','~','`','[',']','{','}','|',':',';','"','\'','<','>',',','.','?','/',' '];
+    let mut password = String::new();
 
+    for _ in 0..30 {
+        let mut rng = rand::thread_rng();
+        let rand_index = rng.gen_range(0..93);
+        password.push(char_candidates[rand_index])
+    } 
+
+    password
+}

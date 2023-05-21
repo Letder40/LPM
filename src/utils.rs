@@ -30,6 +30,16 @@ pub fn print_info(text: &str){
     print!("{text}\n");
 }
 
+pub fn print_in_color(color: Color,text: &str){
+    execute!(
+        stdout(),
+        SetForegroundColor(color),
+        Print(text),
+        ResetColor
+    ).unwrap();
+    stdout().flush().unwrap();
+}
+
 fn eprint_in_color(color: Color,text: &str){
     execute!(
         stderr(),
