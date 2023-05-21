@@ -5,6 +5,7 @@ LPM is a highly secure password management application that allows you to store 
 **Key Features:**
 
 - Securely encrypted password storage.
+- Memory safety and protected again forensics techniques.
 - Password generator that enables you to create secure and unique passwords.
 - Quick and easy access to your passwords with just one master password.
 - Cross-platform.
