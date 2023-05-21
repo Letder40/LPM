@@ -9,7 +9,6 @@ edition = "2021"
 aes-gcm = "0.10.1"
 bincode = "1.3.3"
 cli-clipboard = "0.4.0"
-copypasta-ext = "0.4.4"
 crossterm = "0.26.1"
 ctrlc = "3.2.5"
 rand = "0.8.5"
@@ -20,6 +19,8 @@ sha2 = "0.10.6"
 tabled = "0.12.0"
 typenum = "1.16.0"
 zeroize = "1.6.0"
+copypasta-ext = "0.4.4"
+
 
 [[bin]]
 name = "lpm"
