@@ -90,6 +90,14 @@ pub fn home(){
             continue
        }
 
+       if input.trim().starts_with("rm") || input.trim().starts_with("rem") || input.trim().starts_with("del") {
+            if input.split(' ').collect::<Vec<&str>>().len() < 2 {
+                print_err("You can only remove password one by one")
+            }
+            rm(&mut passfile_data, input.clone());      
+            continue; 
+
+        }
 
         match input.as_str().trim() {
             "help"                        => { help() }
@@ -289,6 +297,28 @@ fn copy(passfile_data: &Vec<PasswordData>, input: String){
         print_err("There is not such identifier")
     }
 }
+
+
+fn rm(passfile_data: &mut Vec<PasswordData>, input: String){
+
+    let password_requested_id = input.trim().split(' ').collect::<Vec<&str>>()[1];
+
+    let mut removed = false; 
+    let  mut counter = 0;
+    for password in  passfile_data.clone() {
+        if password.id == password_requested_id {
+            passfile_data.remove(counter);
+            removed = true
+        } 
+        counter += 1
+    }
+
+    if removed != true {
+        print_err("Not a valid password identifier")
+    }
+    
+}
+
 // Function for get configuration
 fn gc(){
     let config_path = crate::config::config_path().as_os_str().to_owned().into_string().unwrap();

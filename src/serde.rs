@@ -1,7 +1,7 @@
 use serde_derive::{Deserialize, Serialize};
 use bincode::{deserialize, serialize};
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct PasswordData {
     pub id: String,
     pub value: String
