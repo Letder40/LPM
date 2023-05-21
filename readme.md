@@ -16,5 +16,5 @@ Furthermore, LPM has a user-friendly interface, making it accessible to anyone, 
 
 So, don't wait any longer and download LPM today to protect your passwords and feel secure online!
 
-## Preview and command
+## Preview and commands
 ![Help LPM](media/help.png)
