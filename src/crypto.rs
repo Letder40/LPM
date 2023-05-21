@@ -33,7 +33,7 @@ pub fn encrypt(mut key:GenericArray<u8, U32>, passfile_data_bytes: Vec<u8>)  {
     //println!("{:?} of {} bytes\n\n", cipher_data, cipher_data.len());    // for testing purposes
 
     //Populating passfile.lpm with 12bytes(64bits) of nonce and the cipher data
-    let passfile_path_string = &read_config()["passfile_path"];
+    let passfile_path_string = &read_config().passfile_path;
     let passfile_path = PathBuf::from(passfile_path_string);
     let mut passfile = File::create(passfile_path).unwrap();
     let mut data_buf: Vec<u8> = Vec::new();
@@ -50,7 +50,7 @@ pub fn decrypt(key: GenericArray<u8, U32>) -> Vec<u8> {
     let mut buffer:Vec<u8> = Vec::new();
 
     // Getting nonce from first 12 bytes(96 bits) of .passfile.lpm
-    let passfile_string = &read_config()["passfile_path"];
+    let passfile_string = &read_config().passfile_path;
     let passfile_path = PathBuf::from(passfile_string);
     let mut passfile = File::open(passfile_path).unwrap();
     passfile.read_to_end(&mut buffer).expect( "[!] File could not be readed, check permission issues.");

@@ -68,12 +68,9 @@ pub fn home(){
     // APP LOOP
     loop {
         
-        if config["lpm_prompt"] == "default" {
-            print_in_color(Color::Green, "LPM > ")
-        }else{
-            let prompt = format!("{} > ", config["lpm_prompt"]);
-            print_in_color(Color::Green, &prompt)
-        }
+        let prompt = format!("{} ", config.lpm_prompt);
+        print_in_color(Color::Green, &prompt);
+
         stdout().flush().unwrap();
 
         let mut input = String::new();
@@ -332,12 +329,17 @@ fn gc(){
     let mut builder = Builder::default();
     let headers = vec!["Configuration name", "Value"];
     builder.set_header(headers);
+
+    let remote_server = if configuration.remote_server.lpm_remote_server { "True" } else { "False" };
     let rows = vec![
         vec!["LPM config file path", config_path.as_str()],
-        vec!["passfile.lpm path", configuration["passfile_path"].as_str() ],
-        vec!["Prompt", configuration["lpm_prompt"].as_str() ],
-        vec!["Remote Server (not implemented)", configuration["lpm_remote_server"].as_str() ],
+        vec!["passfile.lpm path", configuration.passfile_path.as_str() ],
+        vec!["Prompt", configuration.lpm_prompt.as_str() ],
+        vec!["Remote Server", remote_server],
+        vec!["Remote Server type", configuration.remote_server.lpm_remote_server_type.as_str() ],
+        vec!["Remote Server path", configuration.remote_server.lpm_remote_server_path.as_str() ],
     ];
+
     for row in rows.into_iter() { builder.push_record(row); }
 
     let table = builder.build()

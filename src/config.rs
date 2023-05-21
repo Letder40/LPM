@@ -1,67 +1,34 @@
-use std::{collections::{HashMap}, io::{Write, Read, stdin, stdout},path::PathBuf, fs::{File, create_dir_all}};
-
+use std::{io::{Write, Read},path::{PathBuf}, fs::{File, create_dir_all}};
+use toml;
+use serde_derive::{Deserialize, Serialize};
 use crate::utils::{exit, print_info};
 
 
 //Reading the file and transform the content in a legible format
+#[derive(Deserialize, Serialize)]
+pub struct ConfigFile {
+    pub passfile_path: String,
+    pub lpm_prompt: String,
+    pub remote_server: RemoteServer, 
+}   
 
-pub fn read_config() -> HashMap<String, String> {
+#[derive(Deserialize, Serialize)]
+pub struct RemoteServer {
+    pub lpm_remote_server: bool,
+    pub lpm_remote_server_type: String,
+    pub lpm_remote_server_path: String,
+}
 
-    let mut path:PathBuf = config_path(); // Getting path from private function config_path(), it get the config path widnows/linux/macos
-    check_config(&mut path); // Checking if config file exists if not create a new one and all the parents folders
 
-    let mut config_file = File::open(&path).unwrap();
-    let mut read_buffer:Vec<u8> = vec![];
-    match config_file.read_to_end(&mut read_buffer) {
-        Ok(_) => {},
-        Err(_) => {
-            eprint!(" [!] wasn't been posible to read the file ")
-        },
-    }
+pub fn read_config() -> ConfigFile {
+    check_config(&mut config_path());
+    let mut config_file_content:Vec<u8> = Vec::new();
+    let mut config_file = File::open(config_path().as_path()).expect(" [!] config file could not be open, check permission issues\n");
+    config_file.read_to_end(&mut config_file_content).expect(" [!] config file could not be readed, check permission issues\n");
+    let config_file_content = String::from_utf8(config_file_content).expect("[!] there is non utf8 characters in the config file\n");
+    let config = toml::from_str(&config_file_content).expect("[!] has not been posible to read the config file, check toml syntax\n");
+    config
 
-    let data = String::from_utf8(read_buffer).unwrap();
-    let mut data_vec:Vec<&str> = data.trim().split(['\n', ':']).collect();
-
-    //checking that the config file is a valid one, if not create a new one
-    if  data_vec.len() < 6 || data_vec[0] != "passfile_path" || data_vec[2] != "lpm_prompt" || data_vec[4] != "lpm_remote_server" {
-        
-        let mut input = String::new();
-        loop {
-            print!("Seems that your config file is corrupted, do you like to create a new one? [N/y] : ");
-            stdout().flush().unwrap();
-            stdin().read_line(&mut input).unwrap();
-            if input.trim().to_lowercase() == "" ||  input.trim().to_lowercase() == "n" {
-                exit(1, "Your config file is corrupted try to fix it or create a new one\n");
-                break;
-            }else if input.trim().to_lowercase() == "y" {
-                let mut write_config_file = File::create(&path).unwrap();
-                recreate_file(&mut write_config_file);
-                break;
-            }
-        }
-
-        data_vec = vec!["passfile_path", "default", "lpm_prompt", "default", "lpm_remote_server", "none"];
-
-    }
-
-    let mut data_hashmap:HashMap<String, String> = HashMap::new();
-    
-    //splitting the vector in chunks of size 2 and adding it to the hashmap then ...
-    //Getting a hashmap of type String because &str is borrowed
-
-    for chunk in data_vec.chunks(2) {
-        let key = chunk[0].to_owned();
-        
-        let value = if key.as_str() == "passfile_path" && chunk[1].trim() == "default" {
-            lpm_default_path()
-        } else {
-            chunk[1].trim().to_owned()
-        };
-        
-        data_hashmap.insert(key, value);
-    }
-
-    return data_hashmap;
 }
 
 
@@ -83,7 +50,7 @@ fn check_config(path:&mut PathBuf){
         
         match File::create(&path)  {
             Ok(mut config_file) => { 
-                config_file.write_all(b"passfile_path: default\nlpm_prompt: default\nlpm_remote_server: none").expect("failed to write in the config file");
+                create_conf_file(&mut config_file);
             },
             Err(_) => { 
                 let error = format!("The config file can't be create in {}, possibely a permision error \n",path.display() );
@@ -96,14 +63,25 @@ fn check_config(path:&mut PathBuf){
 
 
 //recreate the file that has been corrupted
-fn recreate_file(config_file:&mut File) {
-    print_info("corrupted conf file restoring...");
-    config_file.set_len(0).expect("failed to clear the content of the file");
-    config_file.write_all(b"passfile_path: default\nlpm_prompt: default\nlpm_remote_server: default").expect("failed to write in the config file");
+fn create_conf_file(config_file:&mut File) {    
+    let default_config_file:ConfigFile = ConfigFile { 
+        passfile_path: lpm_default_path(),
+        lpm_prompt: "lpm >".to_string(),
+        remote_server: RemoteServer{
+            lpm_remote_server: false,
+            lpm_remote_server_type: "".to_string(),
+            lpm_remote_server_path: "".to_string()
+        }
+
+    };
+
+    let toml = toml::to_string(&default_config_file).unwrap();
+    config_file.write_all(toml.as_bytes()).unwrap();
+    print_info( format!("Created config in {}", config_path().display()).as_str() );
+
 }
 
 // Configs files from linux|macos and windows determined by compiler
-
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 pub fn config_path() -> PathBuf {
     let mut home = std::env::var("HOME").unwrap();

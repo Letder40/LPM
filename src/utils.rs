@@ -53,7 +53,7 @@ fn eprint_in_color(color: Color,text: &str){
 pub fn check_filepass(){
 
     let config = read_config();
-    let passfile_path: &Path = Path::new(&config["passfile_path"]);
+    let passfile_path: &Path = Path::new(&config.passfile_path);
 
     // Creating String type var to use it later as input buffer
     let mut input = String::new();
