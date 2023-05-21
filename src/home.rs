@@ -1,7 +1,7 @@
 use crate::{crypto::{decrypt, encrypt, get_key}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, utils::{print_err, print_input, print_in_color}, config::read_config};
 use crossterm::{execute, terminal::{SetTitle}, style::Color};
 use rand::Rng;
-use tabled::{builder::{Builder}, settings::{Modify, object::Rows, Alignment, Style, Margin, Width, Padding}}; 
+use tabled::{builder::{Builder}, settings::{Modify, object::Rows, Alignment, Style, Margin, Width}}; 
 
 #[cfg(target_os = "linux") ]
 use copypasta_ext::{prelude::*, x11_fork::ClipboardContext};
@@ -121,24 +121,24 @@ pub fn read_pass() -> String {
 }
 
 
-// ------------- 
-// CLI FUNCTIONS
-// -------------
+//  ------------- 
+//  CLI FUNCTIONS
+//  -------------
 
 
 fn help(){
     let mut builder = Builder::default();
-    let headers = vec!["Command", "functionality"];
-    let allrows = vec![
-        vec!["help", "prints this help"],
-        vec!["list | lp", "prints all saved passwords"],
-        vec!["new password | np", "save a new password, type r or random in the password input to generate a randow password"],
-        vec!["rm | del | rem", "remove a password by the password id as argument"],
-        vec!["copy | cp", "copy a password to clipboard by [ Password Id ] or [ Numeric Id displayed ] on list or lp"],
-        vec!["get configuration | gc   ", "Prints the path of the config file and its content"],
-        vec!["author | lpm", "information about the author of the program also known as me"],
-        vec!["exit | wq | q", "closes lpm"],
-        vec!["clear", "Clear the screen buffer as clear or cls"],
+    let headers = ["Command", "functionality"];
+    let allrows = [
+        ["help", "[+] prints this help"],
+        ["list | lp", "[+] prints all saved passwords"],
+        ["new password | np", "[+] save a new password, type r or random in the password input to generate a randow password"],
+        ["rm | del | rem", "[+] remove a password by the password id as argument"],
+        ["copy | cp", "[+] copy a password to clipboard by Password Id on list or lp"],
+        ["get configuration | gc   ", "[+] Prints the path of the config file and its content"],
+        ["author | lpm", "[+] information about the author of the program also known as me"],
+        ["exit | wq | q", "[+] closes lpm"],
+        ["clear", "[+] Clear the screen buffer as clear or cls"],
     ];
 
     builder.set_header(headers);
@@ -147,10 +147,8 @@ fn help(){
 
     let table = builder.build()
     .with(Style::rounded())
-    .with(Modify::new(Rows::new(1..)).with(Alignment::left()))
-    .with(Margin::new(2, 0, 1, 1))
     .with(Modify::new(Rows::new(1..)).with(Width::wrap(50).keep_words()))
-    .with(Modify::new(Rows::new(1..)).with(Padding::new(0, 0, 0, 0)))
+    .with(Margin::new(2, 0, 1, 1))
     .to_string();
     println!("{}", table);
 }
@@ -252,16 +250,14 @@ fn lp(passfile_data:&Vec<PasswordData>){
     builder.set_header(columns);
     
     for password_data in passfile_data.iter(){
-        let row: Vec<String> = vec![n.to_string(), password_data.id.clone(), password_data.value.clone()];
+        let row = vec![n.to_string(), password_data.id.clone(), password_data.value.clone()];
         builder.push_record(row);
         n += 1
     }
 
     let table = builder.build()
     .with(Style::rounded())
-    .with(Modify::new(Rows::new(1..)).with(Alignment::left()))
     .with(Margin::new(2, 0, 1, 1))
-    .with(Modify::new(Rows::new(1..)).with(Width::wrap(30).keep_words()))
     .to_string();
 
     println!("{}", table);
@@ -331,13 +327,13 @@ fn gc(){
     builder.set_header(headers);
 
     let remote_server = if configuration.remote_server.lpm_remote_server { "True" } else { "False" };
-    let rows = vec![
-        vec!["LPM config file path", config_path.as_str()],
-        vec!["passfile.lpm path", configuration.passfile_path.as_str() ],
-        vec!["Prompt", configuration.lpm_prompt.as_str() ],
-        vec!["Remote Server", remote_server],
-        vec!["Remote Server type", configuration.remote_server.lpm_remote_server_type.as_str() ],
-        vec!["Remote Server path", configuration.remote_server.lpm_remote_server_path.as_str() ],
+    let rows = [
+        ["LPM config file path", config_path.as_str()],
+        ["passfile.lpm path", configuration.passfile_path.as_str() ],
+        ["Prompt", configuration.lpm_prompt.as_str() ],
+        ["Remote Server", remote_server],
+        ["Remote Server type", configuration.remote_server.lpm_remote_server_type.as_str() ],
+        ["Remote Server path", configuration.remote_server.lpm_remote_server_path.as_str() ],
     ];
 
     for row in rows.into_iter() { builder.push_record(row); }
@@ -354,8 +350,8 @@ fn gc(){
 
 fn author_table(){
     let mut builder = Builder::default();
-    let headers = vec!["Author", "github"];
-    let row = vec!["Letder", "https://github.com/Letder40"];
+    let headers = ["Author", "github"];
+    let row = ["Letder", "https://github.com/Letder40"];
     builder.set_header(headers);
     builder.push_record(row);
     let table = builder.build()
@@ -382,7 +378,7 @@ pub fn save(passfile_data: &Vec<PasswordData>, key: GenericArray<u8, U32>){
 }
 
 fn random_password() -> String {
-    let char_candidates = vec!['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','0','1','2','3','4','5','6','7','8','9','!','@','#','$','%','^','&','*','(',')','-','_','+','=','~','`','[',']','{','}','|',':',';','"','\'','<','>',',','.','?','/',' '];
+    let char_candidates = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','0','1','2','3','4','5','6','7','8','9','!','@','#','$','%','^','&','*','(',')','-','_','+','=','~','`','[',']','{','}','|',':',';','"','\'','<','>',',','.','?','/',' '];
     let mut password = String::new();
 
     for _ in 0..30 {

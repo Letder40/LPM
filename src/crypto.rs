@@ -4,7 +4,7 @@ use aes_gcm::aead::{Aead, generic_array::GenericArray};
 use sha2::{Digest, Sha256};
 use rand::Rng;
 use typenum::U32;
-use crate::{config::read_config, utils::exit};
+use crate::{config::read_config, utils::{exit, print_err}};
 use zeroize::{self, Zeroize};
 
 // Getting a hash of the provaided password in order to have a password with fixed lenght.
@@ -27,8 +27,16 @@ pub fn encrypt(mut key:GenericArray<u8, U32>, passfile_data_bytes: Vec<u8>)  {
     }
 
     let nonce = Nonce::from_slice(nonce_buff.as_slice());
-    let mut cipher_data = cipher.encrypt(nonce, passfile_data_bytes.as_ref()).expect(" [!] The encryption has failed");
-    
+    let mut cipher_data = match cipher.encrypt(nonce, passfile_data_bytes.as_ref()) {
+        Ok(ok) => {
+            ok 
+        }
+        Err(_) => {
+            print_err("The encryption has failed");
+            panic!()
+        }
+        
+    };
     //println!("Ciphering...\n{:?} of {} bytes", nonce, nonce.len());   // for testing purposes
     //println!("{:?} of {} bytes\n\n", cipher_data, cipher_data.len());    // for testing purposes
 
@@ -39,7 +47,13 @@ pub fn encrypt(mut key:GenericArray<u8, U32>, passfile_data_bytes: Vec<u8>)  {
     let mut data_buf: Vec<u8> = Vec::new();
     data_buf.append(&mut nonce_buff);
     data_buf.append(&mut cipher_data);
-    passfile.write_all(data_buf.as_slice()).expect(" [!] File could not be populated, check permission issues.");
+    match passfile.write_all(data_buf.as_slice()) {
+        Ok(_) => { },
+        Err(_) => {
+            print_err("Has not been posible to write data in passfile.lpm, check permission issues");
+            panic!()
+        }
+    }
 }
 
 
@@ -53,7 +67,13 @@ pub fn decrypt(key: GenericArray<u8, U32>) -> Vec<u8> {
     let passfile_string = &read_config().passfile_path;
     let passfile_path = PathBuf::from(passfile_string);
     let mut passfile = File::open(passfile_path).unwrap();
-    passfile.read_to_end(&mut buffer).expect( "[!] File could not be readed, check permission issues.");
+    match passfile.read_to_end(&mut buffer) {
+        Ok(_) => {  },
+        Err(_) => {
+            print_err("Has not been posible to read data in passfile.lpm, check permission issues");
+            panic!()
+        }
+    };
 
     let nonce = Nonce::from_slice(buffer.split_at(12).0);    
     let cipher_text = buffer.split_at(12).1;

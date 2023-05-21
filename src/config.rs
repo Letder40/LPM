@@ -1,7 +1,7 @@
 use std::{io::{Write, Read},path::{PathBuf}, fs::{File, create_dir_all}};
 use toml;
 use serde_derive::{Deserialize, Serialize};
-use crate::utils::{exit, print_info};
+use crate::utils::{exit, print_info, print_err};
 
 
 //Reading the file and transform the content in a legible format
@@ -19,14 +19,51 @@ pub struct RemoteServer {
     pub lpm_remote_server_path: String,
 }
 
-
 pub fn read_config() -> ConfigFile {
     check_config(&mut config_path());
     let mut config_file_content:Vec<u8> = Vec::new();
-    let mut config_file = File::open(config_path().as_path()).expect(" [!] config file could not be open, check permission issues\n");
-    config_file.read_to_end(&mut config_file_content).expect(" [!] config file could not be readed, check permission issues\n");
-    let config_file_content = String::from_utf8(config_file_content).expect("[!] there is non utf8 characters in the config file\n");
-    let config = toml::from_str(&config_file_content).expect("[!] has not been posible to read the config file, check toml syntax\n");
+
+    let mut config_file = match File::open(config_path().as_path()) {
+        Ok(ok) =>  {
+            ok
+        }
+        Err(_) => {
+            print_err("config file could not be opened, check permission issues");
+            panic!()
+        },
+    };
+
+    match config_file.read_to_end(&mut config_file_content){
+        Ok(ok) =>  {
+            ok
+        }
+        Err(_) => {
+            print_err("onfig file could not be readed, check permission issues");
+            panic!()
+        },
+    };
+
+    let config_file_content = match String::from_utf8(config_file_content) {
+        Ok(ok) =>  {
+            ok
+        }
+        Err(_) => {
+            print_err("there is non utf8 characters in the config file");
+            panic!()
+        },
+    };
+
+    let config = match toml::from_str(&config_file_content)  {
+        Ok(ok) =>  {
+            ok
+        }
+        Err(_) => {
+            print_err("has not been posible to read the config file, check toml syntax");
+            panic!()
+        },
+    
+    };
+
     config
 
 }
@@ -85,7 +122,7 @@ fn create_conf_file(config_file:&mut File) {
 #[cfg(any(target_os = "linux", target_os = "macos"))]
 pub fn config_path() -> PathBuf {
     let mut home = std::env::var("HOME").unwrap();
-    home.push_str("/.config/lpm/lpm.conf");
+    home.push_str("/.config/lpm/lpm_conf.toml");
     let config_path = PathBuf::from(home);
     return config_path;
 }
@@ -93,7 +130,7 @@ pub fn config_path() -> PathBuf {
 #[cfg(target_os = "windows")]
 pub fn config_path() -> PathBuf {
     let mut home = std::env::var("USERPROFILE").unwrap();
-    home.push_str("/AppData/Roaming/lpm/lpm.conf");
+    home.push_str("/AppData/Roaming/lpm/lpm_conf.toml");
     let config_path = PathBuf::from(home);
     return config_path;
 }
