@@ -1,4 +1,6 @@
-# LPM is a highly secure password management application that allows you to store all your passwords securely and protected in an easy and simple way. With LPM, you can have peace of mind knowing that your passwords are protected, and you don't have to worry about remembering multiple complicated passwords.
+# Welcome to Letder's Password Manager !
+
+LPM is a highly secure password management application that allows you to store all your passwords securely and protected in an easy and simple way. With LPM, you can have peace of mind knowing that your passwords are protected, and you don't have to worry about remembering multiple complicated passwords.
 
 **Key Features:**
 
