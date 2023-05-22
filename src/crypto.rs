@@ -1,25 +1,22 @@
 use std::{fs::File, io::{Write, Read}, path::PathBuf};
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
-use aes_gcm::aead::{Aead, generic_array::GenericArray};
+use aes_gcm::aead::Aead;
 use sha2::{Digest, Sha256};
 use rand::Rng;
-use typenum::U32;
 use crate::{config::read_config, utils::{exit, print_err}};
-use zeroize::{self, Zeroize};
 
 // Getting a hash of the provaided password in order to have a password with fixed lenght.
-pub fn get_key(key_as_string: &String ) -> GenericArray<u8, U32> {
+pub fn get_key(key_as_string: &String ) -> Aes256Gcm {
     let key_as_bytes = key_as_string.as_bytes();
     let mut hasher = Sha256::new();
     hasher.update(key_as_bytes);
     let key = hasher.finalize();
-    GenericArray::from(key)
+    let key:Aes256Gcm = Aes256Gcm::new(&key);
+    key
 }
 
-pub fn encrypt(mut key:GenericArray<u8, U32>, passfile_data_bytes: Vec<u8>)  {
-    let cipher = Aes256Gcm::new(&key);
-    key.zeroize();
-    
+pub fn encrypt(cipher:Aes256Gcm, passfile_data_bytes: Vec<u8>)  {
+
     let mut nonce_buff: Vec<u8> = Vec::new();
     for _ in 0..12 {
         let byte = rand::thread_rng().gen();
@@ -57,10 +54,8 @@ pub fn encrypt(mut key:GenericArray<u8, U32>, passfile_data_bytes: Vec<u8>)  {
 }
 
 
-pub fn decrypt(key: GenericArray<u8, U32>) -> Vec<u8> {
-    
-    let decipher = Aes256Gcm::new(&key);
-    
+pub fn decrypt(decipher: Aes256Gcm) -> Vec<u8> {
+        
     let mut buffer:Vec<u8> = Vec::new();
 
     // Getting nonce from first 12 bytes(96 bits) of .passfile.lpm

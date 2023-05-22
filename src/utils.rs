@@ -1,7 +1,8 @@
 use std::{io::{stdout, stderr, stdin, Write}, fs::File, path::Path};
 
-use crate::{config::read_config, crypto::{encrypt, get_key}};
+use crate::{config::read_config, crypto::{encrypt, get_key, decrypt}, serde::{PasswordData, deserialize_passwords}};
 
+use aes_gcm::Aes256Gcm;
 use crossterm::{style::{SetForegroundColor, Color, ResetColor, Print}, execute};
 use zeroize::Zeroize;
 
@@ -78,7 +79,7 @@ pub fn check_filepass(){
                 
                 print_info("provides a password you must remember it, there is no way of change it or recover it");
                 
-                let mut password = crate::home::read_pass();
+                let mut password = read_pass();
                 let key = get_key(&password);
                 password.zeroize();
                 encrypt(key, "".as_bytes().to_vec());
@@ -106,4 +107,24 @@ fn unix_permisions(path:&Path, passfile:&File){
     let mut permisions = metadata.permissions();
     permisions.set_mode(0o600);
     std::fs::set_permissions(path, permisions).unwrap();
+}
+
+
+pub fn read_passfile() -> (Vec<PasswordData>, Aes256Gcm) {
+    let mut password = read_pass();
+    stdout().flush().unwrap();
+    let key = get_key(&password);
+    password.zeroize();
+    let passfile_data_bytes = decrypt(key.clone());
+    let passfile_data = deserialize_passwords(&passfile_data_bytes);
+    (passfile_data, key)
+}
+
+//Read password
+pub fn read_pass() -> String {
+    print_input("Master key : ");
+    stdout().flush().unwrap();
+    let password:String = rpassword::read_password().unwrap();
+
+    return password;
 }
