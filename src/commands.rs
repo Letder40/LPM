@@ -116,7 +116,7 @@ pub fn np(passfile_data: &mut Vec<PasswordData>, key: &Aes256Gcm, input: String)
     }
 
     passfile_data.push(_new_password);
-    save(passfile_data, key.clone());
+    save(passfile_data, &key );
 
 }
 
@@ -182,7 +182,7 @@ pub fn copy(passfile_data: &Vec<PasswordData>, input: String){
 }
 
 
-pub fn rm(passfile_data: &mut Vec<PasswordData>, input: String){
+pub fn rm(passfile_data: &mut Vec<PasswordData>, input: String, key: &Aes256Gcm){
 
     let password_requested_id = input.trim().split(' ').collect::<Vec<&str>>()[1];
 
@@ -199,7 +199,8 @@ pub fn rm(passfile_data: &mut Vec<PasswordData>, input: String){
     if removed != true {
         print_err("Not a valid password identifier")
     }
-    
+    save(passfile_data, key)
+
 }
 
 // Function for get configuration
@@ -256,9 +257,9 @@ pub fn clear(){
     }
 }
 
-pub fn save(passfile_data: &Vec<PasswordData>, key: Aes256Gcm){
+pub fn save(passfile_data: &Vec<PasswordData>, key: &Aes256Gcm){
     let passfile_data_bytes = serialize_passwords(passfile_data);
-    encrypt(key, passfile_data_bytes)
+    encrypt(&key, passfile_data_bytes)
 }
 
 fn random_password() -> String {

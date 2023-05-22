@@ -82,7 +82,7 @@ pub fn check_filepass(){
                 let mut password = read_pass();
                 let key = get_key(&password);
                 password.zeroize();
-                encrypt(key, "".as_bytes().to_vec());
+                encrypt(&key, "".as_bytes().to_vec());
 
                 stdout().flush().unwrap();
 

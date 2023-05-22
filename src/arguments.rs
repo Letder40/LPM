@@ -36,13 +36,12 @@ fn commander (command: String) {
     }
 
     if command.starts_with("rm") || command.trim().starts_with("rem") || command.starts_with("del") {
-        if command.split(' ').collect::<Vec<&str>>().len() < 2 {
-            print_err("You can only remove password one by one")
+        if command.split(' ').collect::<Vec<&str>>().len() > 2 {
+            print_err("You can only remove password one by one");
+            std::process::exit(0);
         }
-        rm(&mut passfile_data, command.clone());      
+        rm(&mut passfile_data, command.clone().trim().to_string(), &key);      
         std::process::exit(0);
-
-
     }
 
     match command.as_str().trim() {

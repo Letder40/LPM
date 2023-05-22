@@ -70,10 +70,10 @@ pub fn home(){
        }
 
        if input.trim().starts_with("rm") || input.trim().starts_with("rem") || input.trim().starts_with("del") {
-            if input.split(' ').collect::<Vec<&str>>().len() < 2 {
+            if input.split(' ').collect::<Vec<&str>>().len() > 2 {
                 print_err("You can only remove password one by one")
             }
-            rm(&mut passfile_data, input.clone());      
+            rm(&mut passfile_data, input.clone(), &key);      
             continue; 
 
         }

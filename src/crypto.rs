@@ -15,7 +15,7 @@ pub fn get_key(key_as_string: &String ) -> Aes256Gcm {
     key
 }
 
-pub fn encrypt(cipher:Aes256Gcm, passfile_data_bytes: Vec<u8>)  {
+pub fn encrypt(cipher:&Aes256Gcm, passfile_data_bytes: Vec<u8>)  {
 
     let mut nonce_buff: Vec<u8> = Vec::new();
     for _ in 0..12 {
