@@ -10,7 +10,7 @@ pub fn check_arguments() {
 
     let first_argument:String = arguments.split(' ').collect::<Vec<&str>>()[0].trim().to_string();
     match first_argument.trim() {
-        "-e"     => {
+        "-c"     => {
             let command = arguments.split(' ').collect::<Vec<&str>>()[1..].join(" ").trim().to_string();
             commander(command)
         },
