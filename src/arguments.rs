@@ -19,7 +19,7 @@ pub fn check_arguments() {
             std::process::exit(0);
         },
          _       => {
-            exit(1, "not a valid argument, use lpm -c {command} or lpm --help")
+            exit(1, "not a valid argument, use lpm -c {command} or lpm --help, if not arguments are passed it will be turned into TUI mode")
          },
     }
 }
