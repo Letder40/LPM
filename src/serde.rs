@@ -13,6 +13,11 @@ pub fn serialize_passwords(passfile_data: &Vec<PasswordData>) -> Vec<u8>{
 }
 
 pub fn deserialize_passwords(passfile_data_bytes: &Vec<u8>) -> Vec<PasswordData>{
-    let passfile_data:Vec<PasswordData> = deserialize(&passfile_data_bytes).unwrap();
+    let passfile_data:Vec<PasswordData> = match deserialize(&passfile_data_bytes) {
+        Ok(passfile_data) => { passfile_data }
+        Err(_) => {
+            vec![]
+        }
+    };
     passfile_data
 }
