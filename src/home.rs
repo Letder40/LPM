@@ -2,9 +2,6 @@ use crate::{utils::{print_err, print_in_color, read_passfile}, commands::*, conf
 use crossterm::{execute, terminal::SetTitle, style::Color};
 use std::{io::{stdout, Write, stdin}};
 
-//CAPABILITY OF RANDOMS PASSWORDS IN USER INPUT; 
-//copy|cp function to copy a password to clipboard by PasswordId or NumericId    
-
 pub fn home(){
 
     let read_passfile_tuple = read_passfile();

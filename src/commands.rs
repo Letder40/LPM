@@ -1,14 +1,13 @@
-use std::{io::{stdout, Write, stdin}};
+use std::io::{stdout, Write, stdin};
+use aes_gcm::Aes256Gcm;
 use rand::Rng;
-use tabled::{builder::{Builder}, settings::{Modify, object::Rows, Alignment, Style, Margin, Width}}; 
+use tabled::{builder::Builder, settings::{Modify, object::Rows, Alignment, Style, Margin, Width}}; 
 use crate::{crypto::encrypt, config::read_config, serde::{serialize_passwords, PasswordData}, utils::{print_input, print_err}};
-
 #[cfg(target_os = "linux") ]
 use copypasta_ext::{prelude::*, x11_fork::ClipboardContext};
 #[cfg(any(target_os = "windows", target_os = "macos"))]
 use cli_clipboard::{ClipboardContext, ClipboardProvider};
 
-use aes_gcm::Aes256Gcm;
 
 pub fn help(){
     let mut builder = Builder::default();
@@ -18,7 +17,7 @@ pub fn help(){
         ["list | lp", "[+] prints all saved passwords"],
         ["new password | np", "[+] save a new password, type r or random in the password input to generate a randow password"],
         ["rm | del | rem", "[+] remove a password by the password id as argument"],
-        ["copy | cp", "[+] copy a password to clipboard by Password Id on list or lp"],
+        ["copy | cp", "[+] copy a password to clipboard by Password Id on list or lp"], 
         ["get configuration | gc   ", "[+] Prints the path of the config file and its content"],
         ["author | lpm", "[+] information about the author of the program also known as me"],
         ["exit | wq | q", "[+] closes lpm"],

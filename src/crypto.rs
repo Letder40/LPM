@@ -91,5 +91,3 @@ pub fn decrypt(decipher: Aes256Gcm) -> Vec<u8> {
     textbuf
 
 }
-
-
