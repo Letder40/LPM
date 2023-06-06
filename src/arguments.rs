@@ -1,5 +1,5 @@
 use std::env;
-use crate::{utils::{exit, read_passfile, print_err}, commands::*};
+use crate::{utils::{exit, read_passfile, print_err}, commands::*, lpm_server};
 
 pub fn check_arguments() {
     let arguments:String = env::args().collect::<Vec<String>>()[1..].join(" ");
@@ -17,6 +17,8 @@ pub fn check_arguments() {
         "--help" => {
             help();
             std::process::exit(0);
+        },"--server" => {
+            lpm_server::main();
         },
          _       => {
             exit(1, "not a valid argument, use lpm -c {command} or lpm --help, if not arguments are passed it will be turned into TUI mode")
