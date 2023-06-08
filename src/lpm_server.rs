@@ -1,11 +1,9 @@
-use crate::{utils::{read_pass}, crypto::decrypt, serde::{PasswordData, deserialize_passwords}};
+use crate::{utils::{read_pass, print_info}, crypto::decrypt, serde::{PasswordData, deserialize_passwords, serialize_passwords}};
+use rand::RngCore;
 use sha2::{Digest, Sha256};
-use aes_gcm::{Aes256Gcm, KeyInit};
+use aes_gcm::{Aes256Gcm, Aes128Gcm, KeyInit, aead::{generic_array::GenericArray, Aead}};
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey, pkcs8::{EncodePublicKey, DecodePublicKey}};
-use zeroize::Zeroize;
-use tokio::{net, io::{AsyncWriteExt, AsyncReadExt}};
-
-use tabled::{builder::Builder, settings::{Style, Margin}}; 
+use tokio::{net::{self, TcpStream}, io::{AsyncWriteExt, AsyncReadExt}};
 
 
 // lpm share
@@ -13,9 +11,18 @@ use tabled::{builder::Builder, settings::{Style, Margin}};
 pub async fn main(){
 
     
+     //passfile decryption
+     let key_as_string = read_pass();
+     let key_as_bytes = key_as_string.as_bytes();
+
+     let mut hasher = Sha256::new();
+     hasher.update(key_as_bytes);
+     let sha_key = hasher.finalize();
+     let aes_key:Aes256Gcm = Aes256Gcm::new(&sha_key);
+     decrypt(aes_key);
 
     let listerner = net::TcpListener::bind("0.0.0.0:9702").await.unwrap();
-    println!("Listenning connections on port 9702");
+    print_info("Listenning connections on port 9702...");
     
     loop {
         let (mut socket, _ )= match listerner.accept().await {
@@ -26,19 +33,9 @@ pub async fn main(){
             },
         };
         
-        tokio::spawn(async move {    
-            //passfile decryption
-            let mut key_as_string = read_pass();
-            let key_as_bytes = key_as_string.as_bytes();
+        tokio::spawn(async move {  
 
-            let mut hasher = Sha256::new();
-            hasher.update(key_as_bytes);
-            let sha_key = hasher.finalize();
             let aes_key:Aes256Gcm = Aes256Gcm::new(&sha_key);
-
-            key_as_bytes.to_owned().zeroize();
-            key_as_string.zeroize();
-
             let serialized_passfile_data = decrypt(aes_key);
             let passfile_data = deserialize_passwords(&serialized_passfile_data);
 
@@ -113,9 +110,8 @@ pub async fn main(){
                 let action_encrypted = read_buf[0..n].to_vec();
                 let action_decrypted = privatekey.decrypt(Pkcs1v15Encrypt, &action_encrypted).unwrap();
                 let action_str = String::from_utf8(action_decrypted).unwrap();
-
-                match action_str.as_str() {
-                    "lp" => { lp(&passfile_data).await }
+                match action_str.as_str().trim() {
+                    "lp" => { lp(&passfile_data, &mut socket, &client_publickey).await }
                     _ => {}
                 }
             }  
@@ -125,30 +121,37 @@ pub async fn main(){
     }
 }
 
-async fn lp(passfile_data:&Vec<PasswordData>){
+async fn lp(passfile_data:&Vec<PasswordData>, socket: &mut TcpStream, client_pubkey: &RsaPublicKey){
 
-    if passfile_data.len() == 0 {
+    if passfile_data.is_empty() {
         //print_err("You don't have any saved password");
-        
+        let mut rng = rand::rngs::OsRng::default();
+        let encrypted_message = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, b"empty").unwrap();
+        socket.write_all(&encrypted_message).await.unwrap();
         return;
     }
-
-    let mut builder = Builder::default();
-    let columns = vec!["#".to_owned(), "Id".to_owned(), "Password".to_owned()];
-    let mut n = 1;
-    builder.set_header(columns);
     
-    for password_data in passfile_data.iter(){
-        let row = vec![n.to_string(), password_data.id.clone(), password_data.value.clone()];
-        builder.push_record(row);
-        n += 1
-    }
 
-    let table = builder.build()
-    .with(Style::rounded())
-    .with(Margin::new(2, 0, 1, 1))
-    .to_string();
+    let mut key_bytes: [u8; 16] = [0; 16];
+    rand::rngs::OsRng::default().fill_bytes(&mut key_bytes);
+    let key_array = GenericArray::from(key_bytes);
+    let key = Aes128Gcm::new(&key_array);
+    let mut nonce: [u8; 12] = [0; 12];
+    rand::rngs::OsRng::default().fill_bytes(&mut nonce);
+    let nonce_array = GenericArray::from(nonce);
 
-    println!("{}", table);
-        
+    let passfile_data_serialized = serialize_passwords(passfile_data);
+    let encrypted_table = key.encrypt(&nonce_array, passfile_data_serialized.as_slice()).unwrap();
+    
+    let mut message_vec:Vec<u8> = vec![];
+    message_vec.append(&mut key_bytes.to_vec());
+    message_vec.append(&mut nonce.to_vec());
+    message_vec.append(&mut encrypted_table.to_vec());
+
+    let mut rng = rand::rngs::OsRng::default();
+    println!("{}", encrypted_table.len());
+    println!("{}", message_vec.len());
+    let encrypted_message = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &message_vec).unwrap();
+    socket.write_all(&encrypted_message).await.unwrap();
+
 }

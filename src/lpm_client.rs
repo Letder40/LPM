@@ -1,5 +1,8 @@
-use crate::{commands::{clear, help, author_table, gc}, config::read_config, utils::{print_in_color, exit, read_pass, print_info, print_err, print_input}};
+use crate::{commands::{clear, help, author_table, gc}, config::read_config, utils::{print_in_color, exit, read_pass, print_info, print_err, print_input}, serde::deserialize_passwords};
+use aes_gcm::{aead::{generic_array::GenericArray, Aead}, Aes128Gcm, KeyInit};
+use typenum::{U16, U12};
 use crossterm::{execute, terminal::SetTitle, style::Color};
+use tabled::{builder::Builder, settings::{Style, Margin}}; 
 use std::{io::{stdout, stdin, Read, Write}, net::TcpStream};
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey, pkcs8::{EncodePublicKey, DecodePublicKey}};
 use zeroize::Zeroize;
@@ -154,8 +157,40 @@ fn get(socket: &mut TcpStream, privkey: &RsaPrivateKey) -> String {
             panic!();
         }
     };
-    let password_table_bytes = privkey.decrypt(Pkcs1v15Encrypt, read_buf[0..n].to_vec().as_ref()).unwrap();
-    String::from_utf8(password_table_bytes).unwrap()
+    
+    let messages_bytes = privkey.decrypt(Pkcs1v15Encrypt, read_buf[0..n].to_vec().as_ref()).unwrap();
+    let key = messages_bytes[0..16].to_vec();
+    let nonce = messages_bytes[16..28].to_vec();
+    let encrypted_table = messages_bytes[28..].to_vec();
+
+    let key_array: GenericArray<u8, U16> = GenericArray::clone_from_slice(key.as_slice());
+    let nonce_array: GenericArray<u8, U12> = GenericArray::clone_from_slice(nonce.as_slice());
+    let key = Aes128Gcm::new(&key_array);
+
+    let passfile_data_bytes = key.decrypt(&nonce_array, encrypted_table.as_slice()).unwrap();
+
+    if passfile_data_bytes == b"empty"{
+        return "[!] You don't have any saved password".to_string();
+    }
+
+    let passfile_data = deserialize_passwords(&passfile_data_bytes);
+
+    let mut builder = Builder::default();
+    let columns = vec!["#".to_owned(), "Id".to_owned(), "Password".to_owned()];
+    let mut n = 1;
+    builder.set_header(columns);
+    
+    for password_data in passfile_data.iter(){
+        let row = vec![n.to_string(), password_data.id.clone(), password_data.value.clone()];
+        builder.push_record(row);
+        n += 1
+    }
+
+     builder.build()
+    .with(Style::rounded())
+    .with(Margin::new(2, 0, 1, 1))
+    .to_string()
+
 }
 
 fn ask_password() -> String {
