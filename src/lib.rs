@@ -6,3 +6,4 @@ pub mod serde;
 pub mod arguments;
 pub mod commands;
 pub mod lpm_server;
+pub mod lpm_client;

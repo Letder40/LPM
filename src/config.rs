@@ -15,8 +15,7 @@ pub struct ConfigFile {
 #[derive(Deserialize, Serialize)]
 pub struct RemoteServer {
     pub lpm_remote_server: bool,
-    pub lpm_remote_server_type: String,
-    pub lpm_remote_server_path: String,
+    pub lpm_remote_server_ipaddr: String,
 }
 
 pub fn read_config() -> ConfigFile {
@@ -38,7 +37,7 @@ pub fn read_config() -> ConfigFile {
             ok
         }
         Err(_) => {
-            print_err("onfig file could not be readed, check permission issues");
+            print_err("config file could not be readed, check permission issues");
             panic!()
         },
     };
@@ -58,7 +57,7 @@ pub fn read_config() -> ConfigFile {
             ok
         }
         Err(_) => {
-            print_err("has not been posible to read the config file, check toml syntax");
+            print_err("has not been posible to read the config file, check toml syntax, if you updated lpm try to remove thr config file a new updated one will be generated in the next execution");
             panic!()
         },
     
@@ -106,8 +105,7 @@ fn create_conf_file(config_file:&mut File) {
         lpm_prompt: "lpm >".to_string(),
         remote_server: RemoteServer{
             lpm_remote_server: false,
-            lpm_remote_server_type: "".to_string(),
-            lpm_remote_server_path: "".to_string()
+            lpm_remote_server_ipaddr: "".to_string()
         }
 
     };

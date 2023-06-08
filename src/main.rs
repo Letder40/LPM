@@ -1,4 +1,4 @@
-use lpm::{utils::{exit, check_filepass}, home::home, arguments::check_arguments} ;
+use lpm::{utils::{exit, check_filepass}, home::home, arguments::check_arguments, config::read_config, lpm_client::client} ;
 
 //     ___       ________  _____ ______      
 //    |\  \     |\   __  \|\   _ \  _   \    
@@ -16,10 +16,12 @@ fn main(){
     }).expect("Error setting Ctrl-C handler");
     check_filepass();
     check_arguments();
-    // LPM INIT 
-    home();
+    // LPM INIT
+    
+    if !read_config().remote_server.lpm_remote_server {
+        home();
+    }else{
+        client()
+    }
 
 }
-
-
-

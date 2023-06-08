@@ -25,10 +25,10 @@ pub fn home(){
         "      \\ \\  \\____","\\ \\  \\___|\\ \\  \\    \\ \\  \\ \n", 
         "       \\|_______|","\\|__|     \\|__|     \\|__|\n", 
         "\n", 
+        "\n",
         "\n"
     ];
     
-    println!();
     let mut index = 0;
     for line in ascii_art.iter() {
         if index % 2 == 0 {
@@ -42,7 +42,7 @@ pub fn home(){
 
 
     // APP LOOP
-        let config = read_config();
+    let config = read_config();
 
     loop {
 

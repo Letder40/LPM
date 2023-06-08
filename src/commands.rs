@@ -216,8 +216,7 @@ pub fn gc(){
         ["passfile.lpm path", configuration.passfile_path.as_str() ],
         ["Prompt", configuration.lpm_prompt.as_str() ],
         ["Remote Server", remote_server],
-        ["Remote Server type", configuration.remote_server.lpm_remote_server_type.as_str() ],
-        ["Remote Server path", configuration.remote_server.lpm_remote_server_path.as_str() ],
+        ["Remote Server IP", configuration.remote_server.lpm_remote_server_ipaddr.as_str() ],
     ];
 
     for row in rows.into_iter() { builder.push_record(row); }
