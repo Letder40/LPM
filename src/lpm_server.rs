@@ -1,8 +1,11 @@
 use crate::{utils::{read_pass, print_info, exit}, crypto::decrypt, serde::{PasswordData, deserialize_passwords, serialize_passwords}, config::read_config, commands::random_password};
+use core::panic;
 use std::{path::{PathBuf}};
+use bincode::serialize;
 use rand::RngCore;
+use serde_derive::Serialize;
 use sha2::{Digest, Sha256};
-use aes_gcm::{Aes256Gcm, Aes128Gcm, KeyInit, Nonce, aead::{generic_array::GenericArray, Aead}};
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey, pkcs8::{EncodePublicKey, DecodePublicKey}};
 use std::sync::Arc;
 use tokio::{net::{self, TcpStream}, io::{AsyncWriteExt, AsyncReadExt }, sync::Mutex, fs::{OpenOptions}};
@@ -63,7 +66,7 @@ pub async fn main(){
             // keys generation
             let mut read_buf: [u8; 1024] = [0; 1024];
             let mut rng = rand::rngs::OsRng::default();
-            let bits = 2000;
+            let bits = 2048;
             let privatekey = RsaPrivateKey::new(&mut rng, bits).expect("private key has not been successfuly generated");
             let publickey = RsaPublicKey::from(privatekey.clone());
            
@@ -153,14 +156,20 @@ pub async fn main(){
                         id: _id,
                         value: _password,
                     };
-
+                    
+                    let mut continue_bool = false;
                     for password in &passfile_data {
                         if password.id == password_data.id{
                             let mut rng = rand::rngs::OsRng::default();
                             let message_encrypted = client_publickey.encrypt(&mut rng, Pkcs1v15Encrypt, b"reused").unwrap();
                             socket.write_all(&message_encrypted).await.unwrap();
-                            return;
+                            get_ack(&mut socket).await;
+                            continue_bool = true
                         }
+                    }
+
+                    if continue_bool{
+                        continue;
                     }
 
                     if password_data.value == "r" || password_data.value == "random"{
@@ -202,8 +211,7 @@ pub async fn main(){
                     let mut rng = rand::rngs::OsRng::default();
                     let message_encrypted = client_publickey.encrypt(&mut rng, Pkcs1v15Encrypt, b"ok").unwrap();
                     socket.write_all(&message_encrypted).await.unwrap();
-                    println!("ok");
-
+                    get_ack(&mut socket).await;
                 }
 
                 match action_str.as_str().trim() {
@@ -224,28 +232,69 @@ async fn lp(passfile_data:&Vec<PasswordData>, socket: &mut TcpStream, client_pub
         let mut rng = rand::rngs::OsRng::default();
         let encrypted_message = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, b"empty").unwrap();
         socket.write_all(&encrypted_message).await.unwrap();
+        get_ack(socket).await;
+        return;
+
+    }else{
+        let mut rng = rand::rngs::OsRng::default();
+        let encrypted_message = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, b"sending").unwrap();
+        socket.write_all(&encrypted_message).await.unwrap();
+        get_ack(socket).await;
+
+    }
+
+    let mut passfile_data_serialized = serialize_passwords(passfile_data);
+    let blocks = (passfile_data_serialized.len() as f32 / 256.0 as f32).ceil() as u32 * 2;
+
+    #[derive(Serialize)]
+    struct BlocksData { value: u32 }
+    let blocks_data = BlocksData { value: blocks };
+    let blocks_data_serialized = serialize(&blocks_data).unwrap();
+    
+    let mut rng = rand::rngs::OsRng::default();
+    let encrypted_blocks_data_serialized = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &blocks_data_serialized).unwrap();
+    socket.write_all(&encrypted_blocks_data_serialized).await.unwrap();
+    get_ack(socket).await;
+
+    println!("{blocks}");
+    if blocks <= 2 {
+        let encrypted_block = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &passfile_data_serialized).unwrap();
+        socket.write_all(&encrypted_block).await.unwrap();
+        get_ack(socket).await;
         return;
     }
-    
 
-    let mut key_bytes: [u8; 16] = [0; 16];
-    rand::rngs::OsRng::default().fill_bytes(&mut key_bytes);
-    let key_array = GenericArray::from(key_bytes);
-    let key = Aes128Gcm::new(&key_array);
-    let mut nonce: [u8; 12] = [0; 12];
-    rand::rngs::OsRng::default().fill_bytes(&mut nonce);
-    let nonce_array = GenericArray::from(nonce);
+    for _ in 0..blocks {
+        let mut _passfile_data_block = vec![];
 
-    let passfile_data_serialized = serialize_passwords(passfile_data);
-    let encrypted_table = key.encrypt(&nonce_array, passfile_data_serialized.as_slice()).unwrap();
-    
-    let mut message_vec:Vec<u8> = vec![];
-    message_vec.append(&mut key_bytes.to_vec());
-    message_vec.append(&mut nonce.to_vec());
-    message_vec.append(&mut encrypted_table.to_vec());
+        if passfile_data_serialized.len() > 128{
+            _passfile_data_block = passfile_data_serialized[0..128].to_vec();
+        }else{
+            _passfile_data_block = passfile_data_serialized.clone()
+        }
 
-    let mut rng = rand::rngs::OsRng::default();
-    let encrypted_message = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &message_vec).unwrap();
-    socket.write_all(&encrypted_message).await.unwrap();
+        println!("correct: {}", _passfile_data_block.len());
 
+        let encrypted_block = match client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &_passfile_data_block) {
+            Ok(encrypted_block) => {encrypted_block},
+            Err(err) => {
+                println!("{}", _passfile_data_block.len());
+                println!("{err}");
+                return;
+            },
+        };
+        socket.write_all(&encrypted_block).await.unwrap();
+        get_ack(socket).await;
+
+        if passfile_data_serialized.len() > 128{
+            passfile_data_serialized = passfile_data_serialized[128..].to_vec();
+        }
+
+    }
+
+}
+
+async fn get_ack(socket: &mut TcpStream){
+    let mut read_buf: [u8; 256] = [0; 256];
+    socket.read(&mut read_buf).await.unwrap();
 }

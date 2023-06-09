@@ -1,7 +1,7 @@
 use crate::{commands::{clear, help, author_table, gc}, config::read_config, utils::{print_in_color, exit, read_pass, print_info, print_err, print_input}, serde::deserialize_passwords};
-use aes_gcm::{aead::{generic_array::GenericArray, Aead}, Aes128Gcm, KeyInit};
-use typenum::{U16, U12};
+use bincode::deserialize;
 use crossterm::{execute, terminal::SetTitle, style::{Color, SetForegroundColor}};
+use serde_derive::Deserialize;
 use tabled::{builder::Builder, settings::{Style, Margin}}; 
 use std::{io::{stdout, stdin, Read, Write}, net::TcpStream};
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey, pkcs8::{EncodePublicKey, DecodePublicKey}};
@@ -10,7 +10,7 @@ use zeroize::Zeroize;
 pub fn client(){
     let config = read_config();
     let mut rng = rand::thread_rng();
-    let bits = 2000;
+    let bits = 2048;
     let privkey = RsaPrivateKey::new(&mut rng, bits).unwrap();
     let pubkey = RsaPublicKey::from(&privkey);
 
@@ -126,10 +126,10 @@ pub fn client(){
         if (input.as_str().trim().starts_with("np") && input.as_str().trim().split(' ').count() == 3 ) || (input.as_str().trim().starts_with("new password") && input.as_str().trim().split(' ').count()  == 4){
             if input.as_str().trim().starts_with("np"){
                 send(format!("np {} {}", input.trim().to_string().split(' ').collect::<Vec<&str>>()[1], input.trim().to_string().split(' ').collect::<Vec<&str>>()[2]), &mut socket, &server_pubkey);
-                response_np(&mut socket, &privkey)
+                response_np(&mut socket, &privkey, &server_pubkey)
             }else{
                 send(format!("new password {} {}", input.trim().to_string().split(' ').collect::<Vec<&str>>()[2], input.trim().to_string().split(' ').collect::<Vec<&str>>()[3]), &mut socket, &server_pubkey);
-                response_np(&mut socket, &privkey)
+                response_np(&mut socket, &privkey, &server_pubkey)
             }
             continue;
         }
@@ -138,8 +138,8 @@ pub fn client(){
 
         match input.as_str().trim() {
             "help"                        => { help() }
-            "list"               |  "lp"  => { send("lp".to_string(), &mut socket, &server_pubkey); println!("{}", get(&mut socket, &privkey)) }
-            "new password"       |  "np"  => { send(ask_password(), &mut socket, &server_pubkey); response_np(&mut socket, &privkey) }
+            "list"               |  "lp"  => { send("lp".to_string(), &mut socket, &server_pubkey); println!("{}", lp(&mut socket, &privkey, &server_pubkey)) }
+            "new password"       |  "np"  => { send(ask_password(), &mut socket, &server_pubkey); response_np(&mut socket, &privkey, &server_pubkey) }
             "get configuration"  |  "gc"  => { gc() }
             "author"             |  "lpm" => { author_table() }
             "exit"         | "w" |  "q"   => { std::process::exit(0); }  
@@ -158,7 +158,8 @@ fn send(action: String, socket: &mut TcpStream, server_pubkey: &RsaPublicKey){
     socket.write_all(&action_encripted).unwrap();
 }
 
-fn get(socket: &mut TcpStream, privkey: &RsaPrivateKey) -> String {
+fn lp(socket: &mut TcpStream, privkey: &RsaPrivateKey, server_pubkey: &RsaPublicKey) -> String {
+    
     let mut read_buf: [u8; 1024] = [0; 1024];
     let n = match socket.read(&mut read_buf) {
         Ok(n) => { n }
@@ -167,23 +168,58 @@ fn get(socket: &mut TcpStream, privkey: &RsaPrivateKey) -> String {
             panic!();
         }
     };
+
+    ack(socket, server_pubkey);
     
     let messages_bytes = privkey.decrypt(Pkcs1v15Encrypt, read_buf[0..n].to_vec().as_ref()).unwrap();
 
     if messages_bytes[0..5].to_owned() == b"empty"{
         return format!("{} [!] {}You don't have any saved password", SetForegroundColor(Color::Red), SetForegroundColor(Color::Reset));
     }
-    let key = messages_bytes[0..16].to_vec();
-    let nonce = messages_bytes[16..28].to_vec();
-    let encrypted_table = messages_bytes[28..].to_vec();
 
-    let key_array: GenericArray<u8, U16> = GenericArray::clone_from_slice(key.as_slice());
-    let nonce_array: GenericArray<u8, U12> = GenericArray::clone_from_slice(nonce.as_slice());
-    let key = Aes128Gcm::new(&key_array);
+    // recomponing message that has been splitted in blocks
 
-    let passfile_data_bytes = key.decrypt(&nonce_array, encrypted_table.as_slice()).unwrap();
+    let mut read_buf: [u8; 1024] = [0; 1024];
+    let n = match socket.read(&mut read_buf) {
+        Ok(n) => { n }
+        Err(err) => {
+            exit(1, format!("{err}").as_str());
+            panic!();
+        }
+    };
 
-    let passfile_data = deserialize_passwords(&passfile_data_bytes);
+    ack(socket, server_pubkey);
+
+    let blocks_bytes = privkey.decrypt(Pkcs1v15Encrypt, &read_buf[0..n]).unwrap();
+    #[derive(Deserialize)]
+    struct BlocksData { value: u32 }
+
+    let blocks_data:BlocksData =  deserialize(&blocks_bytes).unwrap();
+    let blocks = blocks_data.value;
+
+    let mut password_data: Vec<u8> = vec![];
+
+    for _ in 0..blocks {
+        let mut read_buf: [u8; 1024] = [0; 1024];
+        let n = match socket.read(&mut read_buf) {
+            Ok(n) => { n }
+            Err(err) => {
+                exit(1, format!("{err}").as_str());
+                panic!();
+            }
+        };
+
+        ack(socket, server_pubkey);
+
+        let mut passfile_block = privkey.decrypt(Pkcs1v15Encrypt, &read_buf[0..n]).unwrap();
+        password_data.append(&mut passfile_block);
+
+        if blocks <= 2 {
+            break;
+        }
+    }
+
+    let passfile_data = deserialize_passwords(&password_data);
 
     let mut builder = Builder::default();
     let columns = vec!["#".to_owned(), "Id".to_owned(), "Password".to_owned()];
@@ -219,7 +255,7 @@ fn ask_password() -> String {
     format!("np {id} {password}")
 }
 
-fn response_np(socket: &mut TcpStream, privkey: &RsaPrivateKey){
+fn response_np(socket: &mut TcpStream, privkey: &RsaPrivateKey, server_pubkey: &RsaPublicKey){
     let mut read_buf: [u8; 256] = [0; 256];
     let n = match socket.read(&mut read_buf){
         Ok(n) => {n}
@@ -228,8 +264,17 @@ fn response_np(socket: &mut TcpStream, privkey: &RsaPrivateKey){
             return;
         } 
     };
+
+    ack(socket, server_pubkey);
+
     let message = privkey.decrypt(Pkcs1v15Encrypt, &read_buf[0..n]).unwrap();
     if message == b"reused"{
         print_err("Password Identifier must be unique\n")
     }
+}
+
+fn ack(socket: &mut TcpStream, server_pubkey: &RsaPublicKey){
+    let mut rng = rand::thread_rng();
+    let ack = server_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, b"ACK").unwrap();
+    socket.write_all(&ack).unwrap();
 }
