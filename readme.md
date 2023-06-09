@@ -10,12 +10,10 @@ LPM is a highly secure password management application that allows you to store 
 - Quick and easy access to your passwords with just one master password.
 - Cross-platform.
 
-#### Lpm remote feature realeased !! 
+## Lpm remote feature realeased !! 
 use lpm remote in 3 steps
- 1. start lpm in the server with lpm --server
- 2. Change the lpm\_conf.toml on the client to run in remote, example:
-    lpm\_remote\_server = true 
-    lpm\_remote\_server\_ipaddr = "123.176.18.6" <- the ip address of the lpm.
+ 1. start lpm in the server with lpm --server.
+ 2. In the lpm\_conf.toml, change lpm\_remote\_server to true and set the server ip address in lpm\_remote\_server\_ipaddr.
  3. Now run lpm on the client it will try connect to the server.
 
 ## Why should i use Lpm
