@@ -154,6 +154,15 @@ pub async fn main(){
                         value: _password,
                     };
 
+                    for password in &passfile_data {
+                        if password.id == password_data.id{
+                            let mut rng = rand::rngs::OsRng::default();
+                            let message_encrypted = client_publickey.encrypt(&mut rng, Pkcs1v15Encrypt, b"reused").unwrap();
+                            socket.write_all(&message_encrypted).await.unwrap();
+                            return;
+                        }
+                    }
+
                     if password_data.value == "r" || password_data.value == "random"{
                         password_data.value = random_password();
                     } 
@@ -190,7 +199,11 @@ pub async fn main(){
                             panic!()
                         }
                     }
-                    continue;
+                    let mut rng = rand::rngs::OsRng::default();
+                    let message_encrypted = client_publickey.encrypt(&mut rng, Pkcs1v15Encrypt, b"ok").unwrap();
+                    socket.write_all(&message_encrypted).await.unwrap();
+                    println!("ok");
+
                 }
 
                 match action_str.as_str().trim() {

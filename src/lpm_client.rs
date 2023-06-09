@@ -125,9 +125,11 @@ pub fn client(){
         //np 
         if (input.as_str().trim().starts_with("np") && input.as_str().trim().split(' ').count() == 3 ) || (input.as_str().trim().starts_with("new password") && input.as_str().trim().split(' ').count()  == 4){
             if input.as_str().trim().starts_with("np"){
-                send(format!("np {} {}", input.trim().to_string().split(' ').collect::<Vec<&str>>()[1], input.trim().to_string().split(' ').collect::<Vec<&str>>()[2]), &mut socket, &server_pubkey)
+                send(format!("np {} {}", input.trim().to_string().split(' ').collect::<Vec<&str>>()[1], input.trim().to_string().split(' ').collect::<Vec<&str>>()[2]), &mut socket, &server_pubkey);
+                response_np(&mut socket, &privkey)
             }else{
-                send(format!("new password {} {}", input.trim().to_string().split(' ').collect::<Vec<&str>>()[2], input.trim().to_string().split(' ').collect::<Vec<&str>>()[3]), &mut socket, &server_pubkey)
+                send(format!("new password {} {}", input.trim().to_string().split(' ').collect::<Vec<&str>>()[2], input.trim().to_string().split(' ').collect::<Vec<&str>>()[3]), &mut socket, &server_pubkey);
+                response_np(&mut socket, &privkey)
             }
             continue;
         }
@@ -137,7 +139,7 @@ pub fn client(){
         match input.as_str().trim() {
             "help"                        => { help() }
             "list"               |  "lp"  => { send("lp".to_string(), &mut socket, &server_pubkey); println!("{}", get(&mut socket, &privkey)) }
-            "new password"       |  "np"  => { send(ask_password(), &mut socket, &server_pubkey) }
+            "new password"       |  "np"  => { send(ask_password(), &mut socket, &server_pubkey); response_np(&mut socket, &privkey) }
             "get configuration"  |  "gc"  => { gc() }
             "author"             |  "lpm" => { author_table() }
             "exit"         | "w" |  "q"   => { std::process::exit(0); }  
@@ -215,4 +217,19 @@ fn ask_password() -> String {
     let password = input_buffer.trim();
 
     format!("np {id} {password}")
+}
+
+fn response_np(socket: &mut TcpStream, privkey: &RsaPrivateKey){
+    let mut read_buf: [u8; 256] = [0; 256];
+    let n = match socket.read(&mut read_buf){
+        Ok(n) => {n}
+        Err(err) => { 
+            print_err(format!("{err}").as_str()); 
+            return;
+        } 
+    };
+    let message = privkey.decrypt(Pkcs1v15Encrypt, &read_buf[0..n]).unwrap();
+    if message == b"reused"{
+        print_err("Password Identifier must be unique\n")
+    }
 }
