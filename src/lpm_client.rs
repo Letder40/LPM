@@ -135,6 +135,13 @@ pub fn client(){
         }
         //cp
         //rm
+        if (input.as_str().trim().starts_with("rm") || input.as_str().trim().starts_with("del") || input.as_str().trim().starts_with("rem")) && input.as_str().trim().split(' ').count() == 2  {
+            let id = input.trim().split(' ').collect::<Vec<&str>>()[1];
+            send(format!("rm {id}"), &mut socket, &server_pubkey);
+            continue;
+        }
+
+
 
         match input.as_str().trim() {
             "help"                        => { help() }

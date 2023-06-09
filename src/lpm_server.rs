@@ -1,14 +1,10 @@
-use crate::{utils::{read_pass, print_info, exit}, crypto::decrypt, serde::{PasswordData, deserialize_passwords, serialize_passwords}, config::read_config, commands::random_password};
-use core::panic;
-use std::{path::{PathBuf}};
+use crate::{utils::{read_pass, print_info}, crypto::{decrypt, encrypt}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, commands::random_password};
 use bincode::serialize;
-use rand::RngCore;
 use serde_derive::Serialize;
 use sha2::{Digest, Sha256};
-use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
+use aes_gcm::{Aes256Gcm, KeyInit};
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey, pkcs8::{EncodePublicKey, DecodePublicKey}};
-use std::sync::Arc;
-use tokio::{net::{self, TcpStream}, io::{AsyncWriteExt, AsyncReadExt }, sync::Mutex, fs::{OpenOptions}};
+use tokio::{net::{self, TcpStream}, io::{AsyncWriteExt, AsyncReadExt}};
 
 
 // lpm share
@@ -24,18 +20,6 @@ pub async fn main(){
     let aes_key:Aes256Gcm = Aes256Gcm::new(&sha_key);
     decrypt(aes_key);
 
-
-    // locking passfile with a mutex
-    let passfile_path_string = &read_config().passfile_path;
-    let passfile_path = PathBuf::from(passfile_path_string);
-
-    let passfile = OpenOptions::new()
-    .write(true)
-    .create(false)
-    .open(&passfile_path).await.unwrap();
-
-    let passfile_mutex = Arc::new(Mutex::new(passfile));
-
     let listerner = net::TcpListener::bind("0.0.0.0:9702").await.unwrap();
     print_info("Listenning connections on port 9702...");
     
@@ -49,7 +33,6 @@ pub async fn main(){
             },
         };
 
-        let passfile_copy = Arc::clone(&passfile_mutex);
         let connection = match socket.peer_addr() { 
             Ok(addr) => { addr }
             Err(_) => { continue; }
@@ -142,76 +125,21 @@ pub async fn main(){
                 let action_str = String::from_utf8(action_decrypted).unwrap();
 
                 if action_str.starts_with("np") || action_str.starts_with("new password"){
-                    let mut _id = String::new();
-                    let mut _password = String::new();
-                    if action_str.as_str().trim().starts_with("np"){
-                        _id = action_str.trim().to_string().split(' ').collect::<Vec<&str>>()[1].to_string();
-                        _password = action_str.trim().to_string().split(' ').collect::<Vec<&str>>()[2].to_string();
-                    }else{
-                        _id = action_str.trim().to_string().split(' ').collect::<Vec<&str>>()[2].to_string();
-                        _password = action_str.trim().to_string().split(' ').collect::<Vec<&str>>()[3].to_string();
-                    }
-                    
-                    let mut password_data = PasswordData {
-                        id: _id,
-                        value: _password,
-                    };
-                    
-                    let mut continue_bool = false;
-                    for password in &passfile_data {
-                        if password.id == password_data.id{
-                            let mut rng = rand::rngs::OsRng::default();
-                            let message_encrypted = client_publickey.encrypt(&mut rng, Pkcs1v15Encrypt, b"reused").unwrap();
-                            socket.write_all(&message_encrypted).await.unwrap();
-                            get_ack(&mut socket).await;
-                            continue_bool = true
+                    np(action_str.clone(), &mut passfile_data, &client_publickey, &mut socket, aes_key.clone()).await;
+                }
+
+                if action_str.starts_with("rm") || action_str.starts_with("rem") || action_str.starts_with("del"){
+                    let id = action_str.trim().to_string().split(' ').collect::<Vec<&str>>()[1].to_string();
+                    println!("removing {id}");
+                    let mut count = 0;
+                    for password in passfile_data.clone(){
+                        if password.id == id{
+                            passfile_data.remove(count);
+                            encrypt(&aes_key, serialize_passwords(&passfile_data));
+                            println!("removed {id}");
                         }
+                        count += 1;
                     }
-
-                    if continue_bool{
-                        continue;
-                    }
-
-                    if password_data.value == "r" || password_data.value == "random"{
-                        password_data.value = random_password();
-                    } 
-
-                    passfile_data.push(password_data);
-                    let passfile_data_bytes = serialize_passwords(&passfile_data);
-
-                    let mut nonce_buff: [u8; 12] = [0; 12];
-                    
-                    rand::rngs::OsRng::default().fill_bytes(&mut nonce_buff);
-                    
-                
-                    let nonce = Nonce::from_slice(nonce_buff.as_slice());
-                    let mut cipher_data = match aes_key.encrypt(nonce, passfile_data_bytes.as_ref()) {
-                        Ok(ok) => {
-                            ok 
-                        }
-                        Err(_) => {
-                            exit(1, "The encryption has failed");
-                            panic!()
-                        }
-                        
-                    };
-                                       
-                    let mut data_buf: Vec<u8> = Vec::new();
-                    data_buf.append(&mut nonce_buff.to_vec());
-                    data_buf.append(&mut cipher_data);
-
-                    let mut file = passfile_copy.lock().await;
-                    match file.write_all(data_buf.as_slice()).await {
-                        Ok(_) => { },
-                        Err(_) => {
-                            exit(1,"Has not been posible to write data in passfile.lpm, check permission issues");
-                            panic!()
-                        }
-                    }
-                    let mut rng = rand::rngs::OsRng::default();
-                    let message_encrypted = client_publickey.encrypt(&mut rng, Pkcs1v15Encrypt, b"ok").unwrap();
-                    socket.write_all(&message_encrypted).await.unwrap();
-                    get_ack(&mut socket).await;
                 }
 
                 match action_str.as_str().trim() {
@@ -256,7 +184,6 @@ async fn lp(passfile_data:&Vec<PasswordData>, socket: &mut TcpStream, client_pub
     socket.write_all(&encrypted_blocks_data_serialized).await.unwrap();
     get_ack(socket).await;
 
-    println!("{blocks}");
     if blocks <= 2 {
         let encrypted_block = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &passfile_data_serialized).unwrap();
         socket.write_all(&encrypted_block).await.unwrap();
@@ -272,8 +199,6 @@ async fn lp(passfile_data:&Vec<PasswordData>, socket: &mut TcpStream, client_pub
         }else{
             _passfile_data_block = passfile_data_serialized.clone()
         }
-
-        println!("correct: {}", _passfile_data_block.len());
 
         let encrypted_block = match client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &_passfile_data_block) {
             Ok(encrypted_block) => {encrypted_block},
@@ -294,6 +219,49 @@ async fn lp(passfile_data:&Vec<PasswordData>, socket: &mut TcpStream, client_pub
 
 }
 
+async fn np(action_str: String, passfile_data:&mut Vec<PasswordData>, client_pubkey: &RsaPublicKey, socket: &mut TcpStream, aes_key: Aes256Gcm){
+    let mut _id = String::new();
+    let mut _password = String::new();
+
+    if action_str.as_str().trim().starts_with("np"){
+        _id = action_str.trim().to_string().split(' ').collect::<Vec<&str>>()[1].to_string();
+        _password = action_str.trim().to_string().split(' ').collect::<Vec<&str>>()[2].to_string();
+    }else{
+        _id = action_str.trim().to_string().split(' ').collect::<Vec<&str>>()[2].to_string();
+        _password = action_str.trim().to_string().split(' ').collect::<Vec<&str>>()[3].to_string();
+    }
+                    
+    let mut password_data = PasswordData {
+        id: _id,
+        value: _password,
+    };
+    
+    for password in passfile_data.clone() {
+        if password.id == password_data.id{
+            let mut rng = rand::rngs::OsRng::default();
+            let message_encrypted = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, b"reused").unwrap();
+            socket.write_all(&message_encrypted).await.unwrap();
+            get_ack(socket).await;
+            return;
+        }
+    }
+
+
+    if password_data.value == "r" || password_data.value == "random"{
+        password_data.value = random_password();
+    } 
+
+    passfile_data.push(password_data);
+    let passfile_data_bytes = serialize_passwords(&passfile_data);
+
+    encrypt(&aes_key, passfile_data_bytes);
+
+    let mut rng = rand::rngs::OsRng::default();
+    let message_encrypted = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, b"ok").unwrap();
+    socket.write_all(&message_encrypted).await.unwrap();
+    get_ack(socket).await;
+
+}
 async fn get_ack(socket: &mut TcpStream){
     let mut read_buf: [u8; 256] = [0; 256];
     socket.read(&mut read_buf).await.unwrap();
