@@ -25,7 +25,6 @@ pub async fn main(){
     // locking passfile with a mutex
     let passfile_path_string = &read_config().passfile_path;
     let passfile_path = PathBuf::from(passfile_path_string);
-    println!("{}", passfile_path.metadata().unwrap().len());
 
     let passfile = OpenOptions::new()
     .write(true)
@@ -48,7 +47,12 @@ pub async fn main(){
         };
 
         let passfile_copy = Arc::clone(&passfile_mutex);
-        println!("{}", passfile_path.metadata().unwrap().len());
+        let connection = match socket.peer_addr() { 
+            Ok(addr) => { addr }
+            Err(_) => { continue; }
+        };
+
+        print_info(format!("connection from: {:?}", connection).as_str());
 
         
         tokio::spawn(async move {  
@@ -125,7 +129,13 @@ pub async fn main(){
                     },
                 };
                 let action_encrypted = read_buf[0..n].to_vec();
-                let action_decrypted = privatekey.decrypt(Pkcs1v15Encrypt, &action_encrypted).unwrap();
+                let action_decrypted = match privatekey.decrypt(Pkcs1v15Encrypt, &action_encrypted){
+                    Ok(action) => {action}
+                    Err(_) => { 
+                        print_info(format!("client: {:?} has disconnected", connection).as_str());
+                        return;
+                    }
+                };
                 let action_str = String::from_utf8(action_decrypted).unwrap();
 
                 if action_str.starts_with("np") || action_str.starts_with("new password"){
