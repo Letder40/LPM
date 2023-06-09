@@ -16,7 +16,7 @@ use lpm remote in 3 steps
  2. In the lpm\_conf.toml, change lpm\_remote\_server to true and set the server ip address in lpm\_remote\_server\_ipaddr.
  3. Now run lpm on the client it will try connect to the server.
 
-## Why should i use Lpm
+## Why should I use Lpm?
 LPM not only helps you efficiently manage your passwords but also provides you with peace of mind regarding the security of your data. Your passwords are encrypted and protected by a master password that only you know.
 
 Furthermore LPM interface is based on terminal TUI that is better on rendiment and charges does not need many resources.
