@@ -1,7 +1,7 @@
 use crate::{commands::{clear, help, author_table, gc}, config::read_config, utils::{print_in_color, exit, read_pass, print_info, print_err, print_input}, serde::deserialize_passwords};
 use aes_gcm::{aead::{generic_array::GenericArray, Aead}, Aes128Gcm, KeyInit};
 use typenum::{U16, U12};
-use crossterm::{execute, terminal::SetTitle, style::Color};
+use crossterm::{execute, terminal::SetTitle, style::{Color, SetForegroundColor}};
 use tabled::{builder::Builder, settings::{Style, Margin}}; 
 use std::{io::{stdout, stdin, Read, Write}, net::TcpStream};
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey, pkcs8::{EncodePublicKey, DecodePublicKey}};
@@ -123,6 +123,14 @@ pub fn client(){
        
 
         //np 
+        if (input.as_str().trim().starts_with("np") && input.as_str().trim().split(' ').count() == 3 ) || (input.as_str().trim().starts_with("new password") && input.as_str().trim().split(' ').count()  == 4){
+            if input.as_str().trim().starts_with("np"){
+                send(format!("np {} {}", input.trim().to_string().split(' ').collect::<Vec<&str>>()[1], input.trim().to_string().split(' ').collect::<Vec<&str>>()[2]), &mut socket, &server_pubkey)
+            }else{
+                send(format!("new password {} {}", input.trim().to_string().split(' ').collect::<Vec<&str>>()[2], input.trim().to_string().split(' ').collect::<Vec<&str>>()[3]), &mut socket, &server_pubkey)
+            }
+            continue;
+        }
         //cp
         //rm
 
@@ -159,6 +167,10 @@ fn get(socket: &mut TcpStream, privkey: &RsaPrivateKey) -> String {
     };
     
     let messages_bytes = privkey.decrypt(Pkcs1v15Encrypt, read_buf[0..n].to_vec().as_ref()).unwrap();
+
+    if messages_bytes[0..5].to_owned() == b"empty"{
+        return format!("{} [!] {}You don't have any saved password", SetForegroundColor(Color::Red), SetForegroundColor(Color::Reset));
+    }
     let key = messages_bytes[0..16].to_vec();
     let nonce = messages_bytes[16..28].to_vec();
     let encrypted_table = messages_bytes[28..].to_vec();
@@ -168,10 +180,6 @@ fn get(socket: &mut TcpStream, privkey: &RsaPrivateKey) -> String {
     let key = Aes128Gcm::new(&key_array);
 
     let passfile_data_bytes = key.decrypt(&nonce_array, encrypted_table.as_slice()).unwrap();
-
-    if passfile_data_bytes == b"empty"{
-        return "[!] You don't have any saved password".to_string();
-    }
 
     let passfile_data = deserialize_passwords(&passfile_data_bytes);
 
