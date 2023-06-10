@@ -7,6 +7,11 @@ use std::{io::{stdout, stdin, Read, Write}, net::TcpStream};
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey, pkcs8::{EncodePublicKey, DecodePublicKey}};
 use zeroize::Zeroize;
 
+#[cfg(target_os = "linux") ]
+use copypasta_ext::{prelude::*, x11_fork::ClipboardContext};
+#[cfg(any(target_os = "windows", target_os = "macos"))]
+use cli_clipboard::{ClipboardContext, ClipboardProvider};
+
 pub fn client(){
     let config = read_config();
     let mut rng = rand::thread_rng();
@@ -133,7 +138,15 @@ pub fn client(){
             }
             continue;
         }
+        
         //cp
+        if (input.as_str().trim().starts_with("cp") || input.as_str().trim().starts_with("copy")) && input.as_str().trim().split(' ').count() == 2  {
+            let id = input.trim().split(' ').collect::<Vec<&str>>()[1];
+            send(format!("cp {id}"), &mut socket, &server_pubkey);
+            response_cp(&mut socket, &privkey);
+            continue;
+        }
+
         //rm
         if (input.as_str().trim().starts_with("rm") || input.as_str().trim().starts_with("del") || input.as_str().trim().starts_with("rem")) && input.as_str().trim().split(' ').count() == 2  {
             let id = input.trim().split(' ').collect::<Vec<&str>>()[1];
@@ -277,6 +290,34 @@ fn response_np(socket: &mut TcpStream, privkey: &RsaPrivateKey, server_pubkey: &
     let message = privkey.decrypt(Pkcs1v15Encrypt, &read_buf[0..n]).unwrap();
     if message == b"reused"{
         print_err("Password Identifier must be unique\n")
+    }
+}
+
+fn response_cp(socket: &mut TcpStream, privkey: &RsaPrivateKey){
+    let mut read_buf: [u8; 256] = [0; 256];
+    let n = match socket.read(&mut read_buf){
+        Ok(n) => {n}
+        Err(err) => { 
+            print_err(format!("{err}").as_str()); 
+            return;
+        } 
+    };
+
+    let message = privkey.decrypt(Pkcs1v15Encrypt, &read_buf[0..n]).unwrap();
+    let message_string = String::from_utf8(message.clone()).unwrap();
+    if message == b"empty"{
+        print_err("You don't have a password stored with that password ID\n")
+    }else{
+        #[cfg(target_os = "linux")]
+        {
+        let mut clipboard = ClipboardContext::new().unwrap();
+        clipboard.set_contents(message_string).unwrap();
+        }
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        {
+        let mut clipboard = ClipboardContext::new().unwrap();
+        clipboard.set_contents(message_string).unwrap();
+        }
     }
 }
 

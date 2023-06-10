@@ -128,17 +128,35 @@ pub async fn main(){
                     np(action_str.clone(), &mut passfile_data, &client_publickey, &mut socket, aes_key.clone()).await;
                 }
 
+                // rm
                 if action_str.starts_with("rm") || action_str.starts_with("rem") || action_str.starts_with("del"){
                     let id = action_str.trim().to_string().split(' ').collect::<Vec<&str>>()[1].to_string();
-                    println!("removing {id}");
                     let mut count = 0;
                     for password in passfile_data.clone(){
                         if password.id == id{
                             passfile_data.remove(count);
                             encrypt(&aes_key, serialize_passwords(&passfile_data));
-                            println!("removed {id}");
                         }
                         count += 1;
+                    }
+                }
+
+                // cp
+                if action_str.starts_with("cp") || action_str.starts_with("copy") {
+                    let id = action_str.trim().to_string().split(' ').collect::<Vec<&str>>()[1].to_string();
+                    let mut founded = false;
+                    for password in passfile_data.clone(){
+                        if password.id == id{
+                            let mut rng = rand::rngs::OsRng::default();
+                            let message_encrypted = client_publickey.encrypt(&mut rng, Pkcs1v15Encrypt, password.value.as_bytes()).unwrap();
+                            socket.write_all(&message_encrypted).await.unwrap();
+                            founded = true
+                        }
+                    }
+                    if !founded {
+                        let mut rng = rand::rngs::OsRng::default();
+                        let message_encrypted = client_publickey.encrypt(&mut rng, Pkcs1v15Encrypt, b"empty").unwrap();
+                        socket.write_all(&message_encrypted).await.unwrap();
                     }
                 }
 
