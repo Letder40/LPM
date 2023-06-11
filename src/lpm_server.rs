@@ -1,24 +1,21 @@
-use crate::{utils::{read_pass, print_info}, crypto::{decrypt, encrypt}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, commands::random_password};
+use crate::{utils::{read_pass, print_info}, crypto::{decrypt, encrypt, get_key, get_hash}, serde::{PasswordData, deserialize_passwords, serialize_passwords}, commands::random_password};
 use bincode::serialize;
 use serde_derive::Serialize;
-use sha2::{Digest, Sha256};
-use aes_gcm::{Aes256Gcm, KeyInit};
+use aes_gcm::Aes256Gcm;
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey, pkcs8::{EncodePublicKey, DecodePublicKey}};
+use zeroize::Zeroize;
 use tokio::{net::{self, TcpStream}, io::{AsyncWriteExt, AsyncReadExt}};
-
 
 // lpm share
 #[tokio::main]
 pub async fn main(){
 
     //passfile decryption
-    let key_as_string = read_pass();
-    let key_as_bytes = key_as_string.as_bytes();
-    let mut hasher = Sha256::new();
-    hasher.update(key_as_bytes);
-    let sha_key = hasher.finalize();
-    let aes_key:Aes256Gcm = Aes256Gcm::new(&sha_key);
-    decrypt(aes_key);
+    let mut key_as_string = read_pass();
+    let hash = get_hash(&key_as_string);
+    let aes_key = get_key(&key_as_string);
+    key_as_string.zeroize();
+    decrypt(aes_key.clone());
 
     let listerner = net::TcpListener::bind("0.0.0.0:9702").await.unwrap();
     print_info("Listenning connections on port 9702...");
@@ -39,10 +36,9 @@ pub async fn main(){
         };
 
         print_info(format!("connection from: {:?}", connection).as_str());
-
+        let aes_key = aes_key.clone();
         
         tokio::spawn(async move {  
-            let aes_key:Aes256Gcm = Aes256Gcm::new(&sha_key);
             let serialized_passfile_data = decrypt(aes_key.clone());
             let mut passfile_data = deserialize_passwords(&serialized_passfile_data);
 
@@ -93,16 +89,16 @@ pub async fn main(){
                 } 
             };
             
-            let mut hasher = Sha256::new();
-            hasher.update(key_as_bytes);
-            let provided_key = hasher.finalize();
+            let mut key_provided_as_string = String::from_utf8(key_as_bytes).unwrap();
             
-            if provided_key == sha_key {
+            
+            if get_hash(&key_provided_as_string) == hash {
                 socket.write_all(b"correct").await.unwrap();
             }else{
                 socket.write_all(b"incorrect").await.unwrap();
                 return;
             }
+            key_provided_as_string.zeroize();
 
             // Connection Stablished and password correct
             loop {

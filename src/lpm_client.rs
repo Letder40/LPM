@@ -61,9 +61,10 @@ pub fn client(){
     
     // send Master_key
     let mut password = read_pass();
-    let password_encrypted = server_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, password.as_bytes()).unwrap();
+    let mut password_encrypted = server_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, password.as_bytes()).unwrap();
     password.zeroize();
     socket.write_all(&password_encrypted).expect("failled to share master key");
+    password_encrypted.zeroize();
 
     // read response 
     let mut read_buf: [u8; 1024] = [0; 1024];

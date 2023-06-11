@@ -1,17 +1,23 @@
 use std::{fs::File, io::{Write, Read}, path::PathBuf};
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use aes_gcm::aead::Aead;
-use sha2::{Digest, Sha256};
+use sha2::Sha256;
+use pbkdf2::{pbkdf2, hmac::Hmac};
 use rand::Rng;
 use crate::{config::read_config, utils::{exit, print_err}};
 
 // Getting a hash of the provaided password in order to have a password with fixed lenght.
 pub fn get_key(key_as_string: &String ) -> Aes256Gcm {
-    let key_as_bytes = key_as_string.as_bytes();
-    let mut hasher = Sha256::new();
-    hasher.update(key_as_bytes);
-    let key = hasher.finalize();
-    let key:Aes256Gcm = Aes256Gcm::new(&key);
+    let salt = key_as_string.clone() + "!lpm!";
+    let mut key: [u8; 32] = [0; 32];
+    pbkdf2::<Hmac<Sha256>>(key_as_string.as_bytes(), salt.as_bytes(), 100_000, &mut key).unwrap();
+    Aes256Gcm::new(&key.into())
+}
+
+pub fn get_hash(key_as_string: &String ) -> [u8; 32] {
+    let salt = key_as_string.clone() + "!lpm!";
+    let mut key: [u8; 32] = [0; 32];
+    pbkdf2::<Hmac<Sha256>>(key_as_string.as_bytes(), salt.as_bytes(), 100_000, &mut key).unwrap();
     key
 }
 
