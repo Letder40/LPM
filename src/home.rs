@@ -81,7 +81,7 @@ pub fn home(){
             "new password"       |  "np"  => { np(&mut passfile_data, &key, input.trim().to_owned()) }
             "get configuration"  |  "gc"  => { gc() }
             "author"             |  "lpm" => { author_table() }
-            "exit"         | "w" |  "q"   => { std::process::exit(0); }  
+            "exit"    | "wq"     |  "q"   => { std::process::exit(0); }  
             "clear"                       => { clear() }
             ""                            => {}
             _                             => { print_err("Invalid Command, you can use help to list all commands");}

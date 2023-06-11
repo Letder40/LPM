@@ -163,7 +163,7 @@ pub fn client(){
             "new password"       |  "np"  => { send(ask_password(), &mut socket, &server_pubkey); response_np(&mut socket, &privkey, &server_pubkey) }
             "get configuration"  |  "gc"  => { gc() }
             "author"             |  "lpm" => { author_table() }
-            "exit"         | "w" |  "q"   => { std::process::exit(0); }  
+            "exit"    | "wq"     |  "q"   => { std::process::exit(0); }  
             "clear"                       => { clear() }
             ""                            => {}
             _                             => { print_err("Invalid Command, you can use help to list all commands");}
