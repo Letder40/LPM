@@ -205,13 +205,15 @@ async fn lp(passfile_data:&Vec<PasswordData>, socket: &mut TcpStream, client_pub
         let split_at_len = passfile_data_serialized.len() / 2;
         let block1 = passfile_data_serialized[0..split_at_len].to_vec();
         let block2 = passfile_data_serialized[split_at_len..].to_vec();
-        let blocks = vec![block1, block2];
+        let blocks = [block1, block2];
 
         for i in 0..2{
             let encrypted_block = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &blocks[i]).unwrap();
             socket.write_all(&encrypted_block).await.unwrap();
             get_ack(socket).await;
         }
+
+        return;
     
     }
 
