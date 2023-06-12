@@ -197,12 +197,22 @@ async fn lp(passfile_data:&Vec<PasswordData>, socket: &mut TcpStream, client_pub
     let encrypted_blocks_data_serialized = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &blocks_data_serialized).unwrap();
     socket.write_all(&encrypted_blocks_data_serialized).await.unwrap();
     get_ack(socket).await;
+    println!("blocks: {blocks}\ndata: {}", encrypted_blocks_data_serialized.len());
+
 
     if blocks <= 2 {
-        let encrypted_block = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &passfile_data_serialized).unwrap();
-        socket.write_all(&encrypted_block).await.unwrap();
-        get_ack(socket).await;
-        return;
+        
+        let split_at_len = passfile_data_serialized.len() / 2;
+        let block1 = passfile_data_serialized[0..split_at_len].to_vec();
+        let block2 = passfile_data_serialized[split_at_len..].to_vec();
+        let blocks = vec![block1, block2];
+
+        for i in 0..2{
+            let encrypted_block = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &blocks[i]).unwrap();
+            socket.write_all(&encrypted_block).await.unwrap();
+            get_ack(socket).await;
+        }
+    
     }
 
     for _ in 0..blocks {
@@ -211,7 +221,7 @@ async fn lp(passfile_data:&Vec<PasswordData>, socket: &mut TcpStream, client_pub
         if passfile_data_serialized.len() > 128{
             _passfile_data_block = passfile_data_serialized[0..128].to_vec();
         }else{
-            _passfile_data_block = passfile_data_serialized.clone()
+            _passfile_data_block = passfile_data_serialized.clone();
         }
 
         let encrypted_block = match client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &_passfile_data_block) {

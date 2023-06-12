@@ -194,8 +194,10 @@ fn lp(socket: &mut TcpStream, privkey: &RsaPrivateKey, server_pubkey: &RsaPublic
     
     let messages_bytes = privkey.decrypt(Pkcs1v15Encrypt, read_buf[0..n].to_vec().as_ref()).unwrap();
 
-    if messages_bytes[0..5].to_owned() == b"empty"{
-        return format!("{} [!] {}You don't have any saved password", SetForegroundColor(Color::Red), SetForegroundColor(Color::Reset));
+    if messages_bytes.len() <= 5 {
+        if messages_bytes[0..5].to_owned() == b"empty"{
+            return format!("{} [!] {}You don't have any saved password", SetForegroundColor(Color::Red), SetForegroundColor(Color::Reset));
+        }
     }
 
     // recomponing message that has been splitted in blocks
@@ -235,9 +237,6 @@ fn lp(socket: &mut TcpStream, privkey: &RsaPrivateKey, server_pubkey: &RsaPublic
         let mut passfile_block = privkey.decrypt(Pkcs1v15Encrypt, &read_buf[0..n]).unwrap();
         password_data.append(&mut passfile_block);
 
-        if blocks <= 2 {
-            break;
-        }
     }
 
     let passfile_data = deserialize_passwords(&password_data);
