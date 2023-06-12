@@ -197,7 +197,7 @@ async fn lp(passfile_data:&Vec<PasswordData>, socket: &mut TcpStream, client_pub
     let encrypted_blocks_data_serialized = client_pubkey.encrypt(&mut rng, Pkcs1v15Encrypt, &blocks_data_serialized).unwrap();
     socket.write_all(&encrypted_blocks_data_serialized).await.unwrap();
     get_ack(socket).await;
-    println!("blocks: {blocks}\ndata: {}", encrypted_blocks_data_serialized.len());
+    // println!("blocks: {blocks}\ndata: {}", encrypted_blocks_data_serialized.len()); // <- blocks debug
 
 
     if blocks <= 2 {
