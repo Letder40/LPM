@@ -147,6 +147,31 @@ pub fn lp(passfile_data:&Vec<PasswordData>){
 
 }
 
+pub fn show(passfile_data: &Vec<PasswordData>){
+    if passfile_data.len() == 0 {
+        print_err("You don't have any saved password");
+        return;
+    }
+
+    let mut builder = Builder::default();
+    let columns = vec!["#".to_owned(), "Id".to_owned()];
+    let mut n = 1;
+    builder.set_header(columns);
+    
+    for password_data in passfile_data.iter(){
+        let row = vec![n.to_string(), password_data.id.clone()];
+        builder.push_record(row);
+        n += 1
+    }
+
+    let table = builder.build()
+    .with(Style::rounded())
+    .with(Margin::new(2, 0, 1, 1))
+    .to_string();
+
+    println!("{}", table);
+}
+
 // Ccopy functionaity
 pub fn copy(passfile_data: &Vec<PasswordData>, input: String){
     let input_splitted:Vec<&str> = input.split(" ").collect();

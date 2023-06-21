@@ -78,6 +78,7 @@ pub fn home(){
         match input.as_str().trim() {
             "help"                        => { help() }
             "list"               |  "lp"  => { lp(&passfile_data) }
+            "show"               |  "show id" => { show(&passfile_data) }  
             "new password"       |  "np"  => { np(&mut passfile_data, &key, input.trim().to_owned()) }
             "get configuration"  |  "gc"  => { gc() }
             "author"             |  "lpm" => { author_table() }

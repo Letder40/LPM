@@ -161,6 +161,7 @@ pub fn client(){
             "help"                        => { help() }
             "list"               |  "lp"  => { send("lp".to_string(), &mut socket, &server_pubkey); println!("{}", lp(&mut socket, &privkey, &server_pubkey)) }
             "new password"       |  "np"  => { send(ask_password(), &mut socket, &server_pubkey); response_np(&mut socket, &privkey, &server_pubkey) }
+            "show id"            | "show" => { send("show".to_string(), &mut socket, &server_pubkey); println!("{}", show(&mut socket, &privkey, &server_pubkey))}
             "get configuration"  |  "gc"  => { gc() }
             "author"             |  "lpm" => { author_table() }
             "exit"    | "wq"     |  "q"   => { std::process::exit(0); }  
@@ -248,6 +249,86 @@ fn lp(socket: &mut TcpStream, privkey: &RsaPrivateKey, server_pubkey: &RsaPublic
     
     for password_data in passfile_data.iter(){
         let row = vec![n.to_string(), password_data.id.clone(), password_data.value.clone()];
+        builder.push_record(row);
+        n += 1
+    }
+
+     builder.build()
+    .with(Style::rounded())
+    .with(Margin::new(2, 0, 1, 1))
+    .to_string()
+
+}
+
+fn show(socket: &mut TcpStream, privkey: &RsaPrivateKey, server_pubkey: &RsaPublicKey) -> String {
+    
+    let mut read_buf: [u8; 1024] = [0; 1024];
+    let n = match socket.read(&mut read_buf) {
+        Ok(n) => { n }
+        Err(err) => {
+            exit(1, format!("{err}").as_str());
+            panic!();
+        }
+    };
+
+    ack(socket, server_pubkey);
+    
+    let messages_bytes = privkey.decrypt(Pkcs1v15Encrypt, read_buf[0..n].to_vec().as_ref()).unwrap();
+
+    if messages_bytes.len() == 5 {
+        if messages_bytes[0..5].to_owned() == b"empty"{
+            return format!("{} [!] {}You don't have any saved password", SetForegroundColor(Color::Red), SetForegroundColor(Color::Reset));
+        }
+    }
+
+    // recomponing message that has been splitted in blocks
+
+    let mut read_buf: [u8; 1024] = [0; 1024];
+    let n = match socket.read(&mut read_buf) {
+        Ok(n) => { n }
+        Err(err) => {
+            exit(1, format!("{err}").as_str());
+            panic!();
+        }
+    };
+
+    ack(socket, server_pubkey);
+
+    let blocks_bytes = privkey.decrypt(Pkcs1v15Encrypt, &read_buf[0..n]).unwrap();
+    #[derive(Deserialize)]
+    struct BlocksData { value: u32 }
+
+    let blocks_data:BlocksData =  deserialize(&blocks_bytes).unwrap();
+    let blocks = blocks_data.value;
+
+    let mut password_data: Vec<u8> = vec![];
+
+    for _ in 0..blocks {
+        let mut read_buf: [u8; 1024] = [0; 1024];
+        let n = match socket.read(&mut read_buf) {
+            Ok(n) => { n }
+            Err(err) => {
+                exit(1, format!("{err}").as_str());
+                panic!();
+            }
+        };
+
+        ack(socket, server_pubkey);
+
+        let mut passfile_block = privkey.decrypt(Pkcs1v15Encrypt, &read_buf[0..n]).unwrap();
+        password_data.append(&mut passfile_block);
+
+    }
+
+    let passfile_data = deserialize_passwords(&password_data);
+
+    let mut builder = Builder::default();
+    let columns = vec!["#".to_owned(), "Id".to_owned()];
+    let mut n = 1;
+    builder.set_header(columns);
+    
+    for password_data in passfile_data.iter(){
+        let row = vec![n.to_string(), password_data.id.clone()];
         builder.push_record(row);
         n += 1
     }

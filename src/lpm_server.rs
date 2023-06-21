@@ -157,7 +157,7 @@ pub async fn main(){
                 }
 
                 match action_str.as_str().trim() {
-                    "lp" => { lp(&passfile_data, &mut socket, &client_publickey).await }
+                    "lp" | "show" => { lp(&passfile_data, &mut socket, &client_publickey).await }
                     _ => {}
                 }
             }  
